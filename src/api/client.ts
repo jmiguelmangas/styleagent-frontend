@@ -1,5 +1,6 @@
 import type {
   ApiError,
+  Artifact,
   CompileResponse,
   HealthResponse,
   Style,
@@ -9,6 +10,27 @@ import type {
 } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+
+function toApiError(error: unknown): ApiError {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    'status' in error &&
+    typeof (error as { message: unknown }).message === 'string' &&
+    typeof (error as { status: unknown }).status === 'number'
+  ) {
+    return {
+      message: (error as { message: string }).message,
+      status: (error as { status: number }).status,
+    }
+  }
+
+  return {
+    message: 'Unknown client error',
+    status: 0,
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
@@ -30,9 +52,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`
+
     try {
-      const payload = (await response.json()) as { message?: string; detail?: string }
-      message = payload.message ?? payload.detail ?? message
+      const payload = (await response.json()) as {
+        message?: string
+        detail?: string
+        error_id?: string
+      }
+
+      if (payload.error_id && payload.message) {
+        message = `${payload.message} [${payload.error_id}]`
+      } else {
+        message = payload.message ?? payload.detail ?? message
+      }
     } catch {
       // Ignore parsing errors and keep fallback message.
     }
@@ -101,6 +133,12 @@ export async function compileStyleVersion(
   )
 }
 
+export async function listStyleArtifacts(styleId: string): Promise<Artifact[]> {
+  return request<Artifact[]>(`/styles/${styleId}/artifacts`)
+}
+
 export async function downloadArtifact(artifactId: string): Promise<Blob> {
   return requestBlob(`/artifacts/${artifactId}`)
 }
+
+export { toApiError }

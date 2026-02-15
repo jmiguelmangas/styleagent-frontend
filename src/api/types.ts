@@ -49,6 +49,16 @@ export interface StyleVersion {
   created_at: string
 }
 
+export interface Artifact {
+  artifact_id: string
+  style_id: string
+  version: string
+  target: 'captureone'
+  path: string
+  sha256: string
+  created_at: string
+}
+
 export interface CompileResponse {
   artifact_id: string
   sha256: string
