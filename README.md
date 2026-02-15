@@ -2,13 +2,14 @@
 
 Thin-client React frontend for StyleAgent (MVP).
 
-## Phase 0 Delivered
+## Current Status
 
-- Vite + React + TypeScript scaffold
-- ESLint configured
-- Frontend CI workflow (lint + build)
-- API base URL via environment variable
-- Health check integration through centralized API client
+- Phase 0 complete: scaffold + CI + health integration
+- Phase 1 complete: core flow UI
+  - Create Style
+  - Create Version
+  - Compile (Capture One)
+  - Download Artifact
 
 ## Setup
 
@@ -26,7 +27,7 @@ cp .env.example .env
 
 Variable:
 
-- `VITE_API_BASE_URL` (default used in code: `http://localhost:8000`)
+- `VITE_API_BASE_URL` (default in code: `http://localhost:8000`)
 
 ## Run
 
@@ -45,3 +46,8 @@ npm run lint
 ```bash
 npm run build
 ```
+
+## Notes
+
+- All API calls are centralized in `src/api/client.ts`.
+- No direct `fetch` calls are used inside components.
