@@ -12,26 +12,36 @@ import type {
   ApiError,
   Artifact,
   CompileResponse,
+  SafePolicy,
   Style,
   StyleSpec,
   StyleVersion,
 } from '../api/types'
 import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
-import { JsonEditor } from '../components/JsonEditor'
+import { StyleSpecControls } from '../components/StyleSpecControls'
 import { StatusCard } from '../components/StatusCard'
 import { useHealth } from '../hooks/useHealth'
 
-const INITIAL_STYLE_SPEC = `{
-  "name": "Nolan Warm",
-  "intent": ["cinematic", "warm"],
-  "captureone": {
-    "keys": {
-      "Exposure": 0.3,
-      "Contrast": 9
-    }
-  }
-}`
+const INITIAL_STYLE_SPEC: StyleSpec = {
+  name: 'Nolan Warm',
+  intent: ['cinematic', 'warm'],
+  captureone: {
+    keys: {
+      Exposure: 0.3,
+      Contrast: 9,
+      Saturation: 6,
+      Clarity: 8,
+      ToneCurve: 'Film Standard',
+    },
+    notes: 'Balanced skin tones with gentle contrast.',
+  },
+  safe: {
+    remove_lens_light_falloff: true,
+    remove_white_balance: true,
+    remove_exposure: false,
+  },
+}
 
 type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history'
 
@@ -40,7 +50,7 @@ export function HomePage() {
 
   const [styleName, setStyleName] = useState('Nolan Warm')
   const [version, setVersion] = useState('v1')
-  const [styleSpecJson, setStyleSpecJson] = useState(INITIAL_STYLE_SPEC)
+  const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
 
   const [createdStyle, setCreatedStyle] = useState<Style | null>(null)
   const [createdVersion, setCreatedVersion] = useState<StyleVersion | null>(null)
@@ -48,7 +58,6 @@ export function HomePage() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
-  const [jsonError, setJsonError] = useState(false)
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null)
 
   const downloadFilename = useMemo(() => {
@@ -64,31 +73,10 @@ export function HomePage() {
 
   function updateStyleSpecName(nextName: string) {
     setStyleName(nextName)
-    try {
-      const parsed = JSON.parse(styleSpecJson) as StyleSpec
-      const nextSpec: StyleSpec = {
-        ...parsed,
-        name: nextName,
-      }
-      setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
-      setJsonError(false)
-    } catch {
-      // keep current json if user is editing invalid JSON
-    }
-  }
-
-  function parseStyleSpecInput(input: string): StyleSpec {
-    const parsed = JSON.parse(input) as unknown
-    if (typeof parsed !== 'object' || parsed === null) {
-      throw new Error('StyleSpec must be a JSON object.')
-    }
-
-    const candidate = parsed as Partial<StyleSpec>
-    if (!candidate.name || !candidate.captureone || !candidate.captureone.keys) {
-      throw new Error('StyleSpec requires `name` and `captureone.keys`.')
-    }
-
-    return parsed as StyleSpec
+    setStyleSpec((prev) => ({
+      ...prev,
+      name: nextName,
+    }))
   }
 
   async function refreshArtifactHistory(styleId: string) {
@@ -146,21 +134,15 @@ export function HomePage() {
     setCompileResult(null)
 
     try {
-      const payload = parseStyleSpecInput(styleSpecJson)
-      setJsonError(false)
-
+      const safePolicy: SafePolicy | undefined = styleSpec.safe
       const created = await createStyleVersion(createdStyle.style_id, {
         version: normalizedVersion,
-        style_spec: payload,
+        style_spec: styleSpec,
+        safe_policy: safePolicy,
       })
       setCreatedVersion(created)
     } catch (err) {
-      if (err instanceof SyntaxError || err instanceof Error) {
-        setJsonError(true)
-        setFlowError({ message: err.message || 'Invalid JSON in StyleSpec.', status: 400 })
-      } else {
-        setFlowError(toApiError(err))
-      }
+      setFlowError(toApiError(err))
     } finally {
       setActiveAction(null)
     }
@@ -245,15 +227,7 @@ export function HomePage() {
           placeholder="v1"
         />
 
-        <label htmlFor="style-spec">StyleSpec JSON</label>
-        <JsonEditor
-          value={styleSpecJson}
-          onChange={(next) => {
-            setStyleSpecJson(next)
-            setJsonError(false)
-          }}
-          hasError={jsonError}
-        />
+        <StyleSpecControls spec={styleSpec} onChange={setStyleSpec} />
 
         <div className="flow-actions">
           <button type="button" onClick={handleCreateStyle} disabled={activeAction !== null || !styleName.trim()}>
