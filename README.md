@@ -13,7 +13,8 @@ Thin-client React frontend for StyleAgent (MVP).
 - Phase 2 complete: UX improvements
   - Better error display
   - Loading states per action
-  - Improved JSON editor UX for `StyleSpec`
+  - Guided style editor with controls (sliders, selects, checkboxes)
+  - Advanced mode JSON editor for full payload editing
   - Artifact history view
 - Phase 3 complete: production hardening
   - Runtime API payload validation for core responses
@@ -24,6 +25,10 @@ Thin-client React frontend for StyleAgent (MVP).
   - Multi-stage Docker build
   - Static serving with Nginx
   - SPA fallback config
+- Phase 5 complete: E2E automation
+  - Playwright setup and CI execution
+  - Headless/headed/UI/debug test modes
+  - Trace/video/screenshot capture on failure
 
 ## Setup
 
