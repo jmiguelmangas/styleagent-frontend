@@ -69,6 +69,48 @@ npm run lint
 npm run build
 ```
 
+## End-to-End Tests (Playwright)
+
+Install browsers (first time only):
+
+```bash
+npx playwright install chromium
+```
+
+Run headless E2E tests:
+
+```bash
+npm run test:e2e
+```
+
+Run with visible browser (watch execution live):
+
+```bash
+npm run test:e2e:headed
+```
+
+Run interactive Playwright UI (step-by-step):
+
+```bash
+npm run test:e2e:ui
+```
+
+Run debug mode (inspector + pause support):
+
+```bash
+npm run test:e2e:debug
+```
+
+Open HTML report after a run:
+
+```bash
+npm run test:e2e:report
+```
+
+Notes:
+- On failures, Playwright now keeps trace, screenshots, and video artifacts.
+- In CI, artifacts are available in the Playwright report output.
+
 ## Run With Docker
 
 Build image from `frontend/`:
