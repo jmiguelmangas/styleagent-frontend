@@ -20,6 +20,10 @@ Thin-client React frontend for StyleAgent (MVP).
   - Timeout handling and normalized client errors
   - Edge-case guards for user inputs and JSON payloads
   - Deployment-oriented Vite config (`base path`, host/ports, build target)
+- Phase 4 complete: Docker support
+  - Multi-stage Docker build
+  - Static serving with Nginx
+  - SPA fallback config
 
 ## Setup
 
@@ -47,7 +51,7 @@ Variables:
 - `VITE_API_TIMEOUT_MS` (default: `10000`)
 - `VITE_APP_BASE_PATH` (default: `/`)
 
-## Run
+## Run (Local Dev)
 
 ```bash
 npm run dev
@@ -64,6 +68,30 @@ npm run lint
 ```bash
 npm run build
 ```
+
+## Run With Docker
+
+Build image from `frontend/`:
+
+```bash
+docker build -t styleagent-frontend:dev \
+  --build-arg VITE_API_BASE_URL=http://localhost:8000 \
+  --build-arg VITE_API_TIMEOUT_MS=10000 \
+  --build-arg VITE_APP_BASE_PATH=/ \
+  .
+```
+
+Run container:
+
+```bash
+docker run --rm -p 5173:80 styleagent-frontend:dev
+```
+
+Frontend URL:
+- `http://localhost:5173`
+
+Container health (nginx lightweight check):
+- `http://localhost:5173/health`
 
 ## Notes
 
