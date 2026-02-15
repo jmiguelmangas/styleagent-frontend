@@ -74,6 +74,20 @@ npm run lint
 npm run build
 ```
 
+## Unit + Integration Tests (Vitest)
+
+Run frontend unit and integration tests:
+
+```bash
+npm run test
+```
+
+Run in watch mode:
+
+```bash
+npm run test:watch
+```
+
 ## End-to-End Tests (Playwright)
 
 Install browsers (first time only):
