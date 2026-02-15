@@ -1,3 +1,6 @@
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import { Alert, Stack, TextField } from '@mui/material'
+
 type JsonEditorProps = {
   value: string
   onChange: (next: string) => void
@@ -6,18 +9,21 @@ type JsonEditorProps = {
 
 export function JsonEditor({ value, onChange, hasError }: JsonEditorProps) {
   return (
-    <div className="json-editor">
-      <textarea
+    <Stack spacing={1.2} sx={{ mt: 1.5 }}>
+      <TextField
         id="style-spec"
+        label="StyleSpec JSON"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        rows={14}
-        className={hasError ? 'invalid' : ''}
-        spellCheck={false}
+        multiline
+        minRows={14}
+        error={hasError}
+        helperText={hasError ? 'Invalid JSON payload. Verify format and required fields.' : undefined}
+        slotProps={{ htmlInput: { spellCheck: false } }}
       />
-      <p className="json-help">
-        Provide valid StyleSpec JSON. The backend will validate required fields and key structure.
-      </p>
-    </div>
+      <Alert severity="info" icon={<InfoOutlinedIcon fontSize="inherit" />}>
+        Advanced mode: edit full payload directly. Backend validation still applies.
+      </Alert>
+    </Stack>
   )
 }

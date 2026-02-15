@@ -1,5 +1,17 @@
 import { useMemo, useState } from 'react'
 
+import DataObjectIcon from '@mui/icons-material/DataObject'
+import TuneIcon from '@mui/icons-material/Tune'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import {
+  Alert,
+  FormControlLabel,
+  Stack,
+  Switch,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@mui/material'
+
 import {
   compileStyleVersion,
   createStyle,
@@ -19,6 +31,7 @@ import type {
 } from '../api/types'
 import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
+import { JsonEditor } from '../components/JsonEditor'
 import { StyleSpecControls } from '../components/StyleSpecControls'
 import { StatusCard } from '../components/StatusCard'
 import { useHealth } from '../hooks/useHealth'
@@ -44,6 +57,7 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
 }
 
 type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history'
+type EditorMode = 'guided' | 'advanced'
 
 export function HomePage() {
   const { data, error, loading } = useHealth()
@@ -51,6 +65,10 @@ export function HomePage() {
   const [styleName, setStyleName] = useState('Nolan Warm')
   const [version, setVersion] = useState('v1')
   const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
+  const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
+  const [jsonError, setJsonError] = useState(false)
+  const [editorMode, setEditorMode] = useState<EditorMode>('guided')
+  const [showAllProperties, setShowAllProperties] = useState(false)
 
   const [createdStyle, setCreatedStyle] = useState<Style | null>(null)
   const [createdVersion, setCreatedVersion] = useState<StyleVersion | null>(null)
@@ -73,10 +91,49 @@ export function HomePage() {
 
   function updateStyleSpecName(nextName: string) {
     setStyleName(nextName)
-    setStyleSpec((prev) => ({
-      ...prev,
-      name: nextName,
-    }))
+    setStyleSpec((prev) => {
+      const nextSpec = {
+        ...prev,
+        name: nextName,
+      }
+      setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
+      return nextSpec
+    })
+    setJsonError(false)
+  }
+
+  function parseStyleSpecInput(input: string): StyleSpec {
+    const parsed = JSON.parse(input) as unknown
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('StyleSpec must be a JSON object.')
+    }
+
+    const candidate = parsed as Partial<StyleSpec>
+    if (!candidate.name || !candidate.captureone || !candidate.captureone.keys) {
+      throw new Error('StyleSpec requires `name` and `captureone.keys`.')
+    }
+
+    return parsed as StyleSpec
+  }
+
+  function updateStyleSpecFromGuided(nextSpec: StyleSpec) {
+    setStyleSpec(nextSpec)
+    setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
+    setJsonError(false)
+  }
+
+  function updateStyleSpecJson(nextJson: string) {
+    setStyleSpecJson(nextJson)
+    try {
+      const parsed = parseStyleSpecInput(nextJson)
+      setStyleSpec(parsed)
+      if (parsed.name !== styleName) {
+        setStyleName(parsed.name)
+      }
+      setJsonError(false)
+    } catch {
+      setJsonError(true)
+    }
   }
 
   async function refreshArtifactHistory(styleId: string) {
@@ -134,15 +191,21 @@ export function HomePage() {
     setCompileResult(null)
 
     try {
-      const safePolicy: SafePolicy | undefined = styleSpec.safe
+      const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
+      const safePolicy: SafePolicy | undefined = payload.safe
       const created = await createStyleVersion(createdStyle.style_id, {
         version: normalizedVersion,
-        style_spec: styleSpec,
+        style_spec: payload,
         safe_policy: safePolicy,
       })
       setCreatedVersion(created)
     } catch (err) {
-      setFlowError(toApiError(err))
+      if (err instanceof SyntaxError || err instanceof Error) {
+        setJsonError(true)
+        setFlowError({ message: err.message || 'Invalid JSON in StyleSpec.', status: 400 })
+      } else {
+        setFlowError(toApiError(err))
+      }
     } finally {
       setActiveAction(null)
     }
@@ -227,7 +290,63 @@ export function HomePage() {
           placeholder="v1"
         />
 
-        <StyleSpecControls spec={styleSpec} onChange={setStyleSpec} />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 1.5 }}>
+          <ToggleButtonGroup
+            color="primary"
+            value={editorMode}
+            exclusive
+            onChange={(_, next: EditorMode | null) => {
+              if (next) {
+                setEditorMode(next)
+              }
+            }}
+            aria-label="editor-mode"
+            size="small"
+          >
+            <ToggleButton value="guided" aria-label="guided-mode">
+              <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
+              Guided mode
+            </ToggleButton>
+            <ToggleButton value="advanced" aria-label="advanced-mode">
+              <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
+              Advanced mode
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {editorMode === 'guided' && (
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showAllProperties}
+                  onChange={(event) => setShowAllProperties(event.target.checked)}
+                />
+              }
+              label={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <VisibilityIcon fontSize="small" />
+                  Show all properties
+                </span>
+              }
+            />
+          )}
+        </Stack>
+
+        {editorMode === 'guided' ? (
+          <StyleSpecControls
+            spec={styleSpec}
+            onChange={updateStyleSpecFromGuided}
+            showAllProperties={showAllProperties}
+          />
+        ) : (
+          <>
+            {jsonError && (
+              <Alert severity="warning" sx={{ mt: 1.5 }}>
+                JSON contains errors. Fix it before creating a version.
+              </Alert>
+            )}
+            <JsonEditor value={styleSpecJson} onChange={updateStyleSpecJson} hasError={jsonError} />
+          </>
+        )}
 
         <div className="flow-actions">
           <button type="button" onClick={handleCreateStyle} disabled={activeAction !== null || !styleName.trim()}>
