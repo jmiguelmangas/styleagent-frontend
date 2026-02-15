@@ -22,8 +22,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit + Integration Tests
+        run: npm run test
+
       - name: Build
         run: npm run build
+
+      - name: Dependency Audit
+        run: npm audit --audit-level=high
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
