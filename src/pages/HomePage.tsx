@@ -15,7 +15,6 @@ import type {
   Style,
   StyleSpec,
   StyleVersion,
-  StyleVersionCreate,
 } from '../api/types'
 import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
@@ -78,6 +77,20 @@ export function HomePage() {
     }
   }
 
+  function parseStyleSpecInput(input: string): StyleSpec {
+    const parsed = JSON.parse(input) as unknown
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('StyleSpec must be a JSON object.')
+    }
+
+    const candidate = parsed as Partial<StyleSpec>
+    if (!candidate.name || !candidate.captureone || !candidate.captureone.keys) {
+      throw new Error('StyleSpec requires `name` and `captureone.keys`.')
+    }
+
+    return parsed as StyleSpec
+  }
+
   async function refreshArtifactHistory(styleId: string) {
     setActiveAction('history')
 
@@ -92,6 +105,12 @@ export function HomePage() {
   }
 
   async function handleCreateStyle() {
+    const normalizedStyleName = styleName.trim()
+    if (!normalizedStyleName) {
+      setFlowError({ message: 'Style name is required.', status: 400 })
+      return
+    }
+
     setActiveAction('style')
     setFlowError(null)
     setCreatedVersion(null)
@@ -99,8 +118,10 @@ export function HomePage() {
     setArtifacts([])
 
     try {
-      const style = await createStyle({ name: styleName })
+      const style = await createStyle({ name: normalizedStyleName })
       setCreatedStyle(style)
+      setCreatedVersion(null)
+      setCompileResult(null)
       await refreshArtifactHistory(style.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
@@ -114,23 +135,29 @@ export function HomePage() {
       return
     }
 
+    const normalizedVersion = version.trim()
+    if (!normalizedVersion) {
+      setFlowError({ message: 'Version is required.', status: 400 })
+      return
+    }
+
     setActiveAction('version')
     setFlowError(null)
     setCompileResult(null)
 
     try {
-      const payload = JSON.parse(styleSpecJson) as StyleVersionCreate['style_spec']
+      const payload = parseStyleSpecInput(styleSpecJson)
       setJsonError(false)
 
       const created = await createStyleVersion(createdStyle.style_id, {
-        version,
+        version: normalizedVersion,
         style_spec: payload,
       })
       setCreatedVersion(created)
     } catch (err) {
-      if (err instanceof SyntaxError) {
+      if (err instanceof SyntaxError || err instanceof Error) {
         setJsonError(true)
-        setFlowError({ message: 'Invalid JSON in StyleSpec.', status: 400 })
+        setFlowError({ message: err.message || 'Invalid JSON in StyleSpec.', status: 400 })
       } else {
         setFlowError(toApiError(err))
       }
@@ -240,6 +267,18 @@ export function HomePage() {
           </button>
           <button type="button" onClick={handleDownloadArtifact} disabled={activeAction !== null || !compileResult}>
             {isLoading('download') ? 'Downloading...' : '4. Download Latest'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!createdStyle) {
+                return
+              }
+              void refreshArtifactHistory(createdStyle.style_id)
+            }}
+            disabled={activeAction !== null || !createdStyle}
+          >
+            {isLoading('history') ? 'Refreshing...' : 'Refresh History'}
           </button>
         </div>
 

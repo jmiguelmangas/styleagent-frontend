@@ -15,6 +15,11 @@ Thin-client React frontend for StyleAgent (MVP).
   - Loading states per action
   - Improved JSON editor UX for `StyleSpec`
   - Artifact history view
+- Phase 3 complete: production hardening
+  - Runtime API payload validation for core responses
+  - Timeout handling and normalized client errors
+  - Edge-case guards for user inputs and JSON payloads
+  - Deployment-oriented Vite config (`base path`, host/ports, build target)
 
 ## Setup
 
@@ -30,9 +35,17 @@ Create `.env` from `.env.example`:
 cp .env.example .env
 ```
 
-Variable:
+Optional production template:
 
-- `VITE_API_BASE_URL` (default in code: `http://localhost:8000`)
+```bash
+cp .env.production.example .env.production
+```
+
+Variables:
+
+- `VITE_API_BASE_URL` (default: `http://localhost:8000`)
+- `VITE_API_TIMEOUT_MS` (default: `10000`)
+- `VITE_APP_BASE_PATH` (default: `/`)
 
 ## Run
 
