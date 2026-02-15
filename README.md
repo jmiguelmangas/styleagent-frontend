@@ -10,6 +10,11 @@ Thin-client React frontend for StyleAgent (MVP).
   - Create Version
   - Compile (Capture One)
   - Download Artifact
+- Phase 2 complete: UX improvements
+  - Better error display
+  - Loading states per action
+  - Improved JSON editor UX for `StyleSpec`
+  - Artifact history view
 
 ## Setup
 
@@ -51,3 +56,4 @@ npm run build
 
 - All API calls are centralized in `src/api/client.ts`.
 - No direct `fetch` calls are used inside components.
+- Frontend remains thin client; compile logic stays in backend.

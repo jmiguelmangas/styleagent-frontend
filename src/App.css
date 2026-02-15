@@ -1,6 +1,6 @@
 .page {
   margin: 0 auto;
-  max-width: 920px;
+  max-width: 980px;
   padding: 2rem 1.25rem 3rem;
 }
 
@@ -15,7 +15,8 @@
 }
 
 .status-card,
-.flow-card {
+.flow-card,
+.history-card {
   margin-top: 1.5rem;
   border: 1px solid #d5d9e0;
   border-radius: 12px;
@@ -24,18 +25,17 @@
 }
 
 .status-card h2,
-.flow-card h2 {
+.flow-card h2,
+.history-card h3 {
   margin: 0 0 0.75rem;
   font-size: 1.1rem;
 }
 
-.status-loading,
-.flow-loading {
+.status-loading {
   color: #3b4a5a;
 }
 
-.status-error,
-.flow-error {
+.status-error {
   color: #a11d2e;
   font-weight: 600;
 }
@@ -67,6 +67,17 @@
   resize: vertical;
 }
 
+.json-editor textarea.invalid {
+  border-color: #a11d2e;
+  outline: 1px solid #a11d2e;
+}
+
+.json-help {
+  margin-top: 0.35rem;
+  font-size: 0.83rem;
+  color: #4f5f74;
+}
+
 .flow-actions {
   margin-top: 1rem;
   display: grid;
@@ -74,7 +85,8 @@
   gap: 0.5rem;
 }
 
-.flow-actions button {
+.flow-actions button,
+.history-list button {
   border: 1px solid #2f4e72;
   background: #355f8a;
   color: #fff;
@@ -84,9 +96,27 @@
   cursor: pointer;
 }
 
-.flow-actions button:disabled {
+.flow-actions button:disabled,
+.history-list button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.error-banner {
+  margin-top: 1rem;
+  border: 1px solid #a11d2e;
+  background: #fff1f3;
+  color: #7e1120;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+}
+
+.error-banner p {
+  margin: 0.2rem 0;
+}
+
+.error-banner small {
+  opacity: 0.85;
 }
 
 .flow-output {
@@ -97,6 +127,29 @@
 
 .flow-output p {
   margin: 0.35rem 0;
+  overflow-wrap: anywhere;
+}
+
+.history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.history-list li {
+  border: 1px solid #c9d3e2;
+  border-radius: 8px;
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.4rem;
+  background: #fff;
+}
+
+.history-list p {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
   overflow-wrap: anywhere;
 }
 

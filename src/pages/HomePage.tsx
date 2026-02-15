@@ -5,8 +5,21 @@ import {
   createStyle,
   createStyleVersion,
   downloadArtifact,
+  listStyleArtifacts,
+  toApiError,
 } from '../api/client'
-import type { ApiError, CompileResponse, Style, StyleVersion, StyleVersionCreate } from '../api/types'
+import type {
+  ApiError,
+  Artifact,
+  CompileResponse,
+  Style,
+  StyleSpec,
+  StyleVersion,
+  StyleVersionCreate,
+} from '../api/types'
+import { ArtifactHistory } from '../components/ArtifactHistory'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { JsonEditor } from '../components/JsonEditor'
 import { StatusCard } from '../components/StatusCard'
 import { useHealth } from '../hooks/useHealth'
 
@@ -21,6 +34,8 @@ const INITIAL_STYLE_SPEC = `{
   }
 }`
 
+type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history'
+
 export function HomePage() {
   const { data, error, loading } = useHealth()
 
@@ -31,9 +46,11 @@ export function HomePage() {
   const [createdStyle, setCreatedStyle] = useState<Style | null>(null)
   const [createdVersion, setCreatedVersion] = useState<StyleVersion | null>(null)
   const [compileResult, setCompileResult] = useState<CompileResponse | null>(null)
+  const [artifacts, setArtifacts] = useState<Artifact[]>([])
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
-  const [flowLoading, setFlowLoading] = useState(false)
+  const [jsonError, setJsonError] = useState(false)
+  const [activeAction, setActiveAction] = useState<ActionKey | null>(null)
 
   const downloadFilename = useMemo(() => {
     if (!createdStyle || !createdVersion) {
@@ -42,19 +59,52 @@ export function HomePage() {
     return `${createdStyle.slug}-${createdVersion.version}.costyle`
   }, [createdStyle, createdVersion])
 
+  function isLoading(action: ActionKey): boolean {
+    return activeAction === action
+  }
+
+  function updateStyleSpecName(nextName: string) {
+    setStyleName(nextName)
+    try {
+      const parsed = JSON.parse(styleSpecJson) as StyleSpec
+      const nextSpec: StyleSpec = {
+        ...parsed,
+        name: nextName,
+      }
+      setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
+      setJsonError(false)
+    } catch {
+      // keep current json if user is editing invalid JSON
+    }
+  }
+
+  async function refreshArtifactHistory(styleId: string) {
+    setActiveAction('history')
+
+    try {
+      const list = await listStyleArtifacts(styleId)
+      setArtifacts(list)
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
   async function handleCreateStyle() {
-    setFlowLoading(true)
+    setActiveAction('style')
     setFlowError(null)
     setCreatedVersion(null)
     setCompileResult(null)
+    setArtifacts([])
 
     try {
       const style = await createStyle({ name: styleName })
       setCreatedStyle(style)
+      await refreshArtifactHistory(style.style_id)
     } catch (err) {
-      setFlowError(err as ApiError)
-    } finally {
-      setFlowLoading(false)
+      setFlowError(toApiError(err))
+      setActiveAction(null)
     }
   }
 
@@ -64,12 +114,14 @@ export function HomePage() {
       return
     }
 
-    setFlowLoading(true)
+    setActiveAction('version')
     setFlowError(null)
     setCompileResult(null)
 
     try {
       const payload = JSON.parse(styleSpecJson) as StyleVersionCreate['style_spec']
+      setJsonError(false)
+
       const created = await createStyleVersion(createdStyle.style_id, {
         version,
         style_spec: payload,
@@ -77,12 +129,13 @@ export function HomePage() {
       setCreatedVersion(created)
     } catch (err) {
       if (err instanceof SyntaxError) {
+        setJsonError(true)
         setFlowError({ message: 'Invalid JSON in StyleSpec.', status: 400 })
       } else {
-        setFlowError(err as ApiError)
+        setFlowError(toApiError(err))
       }
     } finally {
-      setFlowLoading(false)
+      setActiveAction(null)
     }
   }
 
@@ -92,16 +145,35 @@ export function HomePage() {
       return
     }
 
-    setFlowLoading(true)
+    setActiveAction('compile')
     setFlowError(null)
 
     try {
       const compiled = await compileStyleVersion(createdStyle.style_id, createdVersion.version)
       setCompileResult(compiled)
+      await refreshArtifactHistory(createdStyle.style_id)
     } catch (err) {
-      setFlowError(err as ApiError)
+      setFlowError(toApiError(err))
+      setActiveAction(null)
+    }
+  }
+
+  async function triggerDownload(artifactId: string, filename: string) {
+    setActiveAction('download')
+    setFlowError(null)
+
+    try {
+      const blob = await downloadArtifact(artifactId)
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setFlowError(toApiError(err))
     } finally {
-      setFlowLoading(false)
+      setActiveAction(null)
     }
   }
 
@@ -110,30 +182,14 @@ export function HomePage() {
       setFlowError({ message: 'Compile an artifact first.', status: 400 })
       return
     }
-
-    setFlowLoading(true)
-    setFlowError(null)
-
-    try {
-      const blob = await downloadArtifact(compileResult.artifact_id)
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = downloadFilename
-      anchor.click()
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      setFlowError(err as ApiError)
-    } finally {
-      setFlowLoading(false)
-    }
+    await triggerDownload(compileResult.artifact_id, downloadFilename)
   }
 
   return (
     <main className="page">
       <header>
         <h1>StyleAgent Frontend</h1>
-        <p>MVP core flow: create style, create version, compile, download.</p>
+        <p>MVP core flow with improved UX and artifact history.</p>
       </header>
 
       <StatusCard
@@ -144,13 +200,13 @@ export function HomePage() {
       />
 
       <section className="flow-card">
-        <h2>Core Flow (Phase 1)</h2>
+        <h2>Core Flow</h2>
 
         <label htmlFor="style-name">Style name</label>
         <input
           id="style-name"
           value={styleName}
-          onChange={(event) => setStyleName(event.target.value)}
+          onChange={(event) => updateStyleSpecName(event.target.value)}
           placeholder="Nolan Warm"
         />
 
@@ -163,35 +219,31 @@ export function HomePage() {
         />
 
         <label htmlFor="style-spec">StyleSpec JSON</label>
-        <textarea
-          id="style-spec"
+        <JsonEditor
           value={styleSpecJson}
-          onChange={(event) => setStyleSpecJson(event.target.value)}
-          rows={12}
+          onChange={(next) => {
+            setStyleSpecJson(next)
+            setJsonError(false)
+          }}
+          hasError={jsonError}
         />
 
         <div className="flow-actions">
-          <button type="button" onClick={handleCreateStyle} disabled={flowLoading || !styleName.trim()}>
-            1. Create Style
+          <button type="button" onClick={handleCreateStyle} disabled={activeAction !== null || !styleName.trim()}>
+            {isLoading('style') ? 'Creating style...' : '1. Create Style'}
           </button>
-          <button type="button" onClick={handleCreateVersion} disabled={flowLoading || !createdStyle}>
-            2. Create Version
+          <button type="button" onClick={handleCreateVersion} disabled={activeAction !== null || !createdStyle}>
+            {isLoading('version') ? 'Creating version...' : '2. Create Version'}
           </button>
-          <button type="button" onClick={handleCompile} disabled={flowLoading || !createdVersion}>
-            3. Compile
+          <button type="button" onClick={handleCompile} disabled={activeAction !== null || !createdVersion}>
+            {isLoading('compile') ? 'Compiling...' : '3. Compile'}
           </button>
-          <button type="button" onClick={handleDownloadArtifact} disabled={flowLoading || !compileResult}>
-            4. Download Artifact
+          <button type="button" onClick={handleDownloadArtifact} disabled={activeAction !== null || !compileResult}>
+            {isLoading('download') ? 'Downloading...' : '4. Download Latest'}
           </button>
         </div>
 
-        {flowLoading && <p className="flow-loading">Running request...</p>}
-
-        {flowError && (
-          <p className="flow-error">
-            {flowError.message} ({flowError.status})
-          </p>
-        )}
+        {flowError && <ErrorBanner error={flowError} />}
 
         <div className="flow-output">
           <p>
@@ -208,6 +260,14 @@ export function HomePage() {
           </p>
         </div>
       </section>
+
+      <ArtifactHistory
+        artifacts={artifacts}
+        loading={isLoading('history')}
+        onDownload={(artifactId, filename) => {
+          void triggerDownload(artifactId, filename)
+        }}
+      />
     </main>
   )
 }
