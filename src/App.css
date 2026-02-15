@@ -54,7 +54,8 @@
 }
 
 .flow-card input,
-.flow-card textarea {
+.flow-card textarea,
+.flow-card select {
   width: 100%;
   border: 1px solid #b8c2d1;
   border-radius: 8px;
@@ -67,15 +68,65 @@
   resize: vertical;
 }
 
-.json-editor textarea.invalid {
-  border-color: #a11d2e;
-  outline: 1px solid #a11d2e;
+.style-controls {
+  margin-top: 0.9rem;
+  padding: 0.85rem;
+  border: 1px solid #c9d3e2;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
-.json-help {
-  margin-top: 0.35rem;
-  font-size: 0.83rem;
-  color: #4f5f74;
+.style-controls h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.style-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.style-grid label {
+  margin-top: 0.2rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.style-grid input[type='range'] {
+  padding: 0;
+}
+
+.choice-block {
+  margin-top: 0.85rem;
+  border-top: 1px dashed #d2dae7;
+  padding-top: 0.75rem;
+}
+
+.choice-block p {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #3b4a5a;
+}
+
+.checkbox-grid {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.check-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.check-item input {
+  width: auto;
+  margin: 0;
 }
 
 .flow-actions {
@@ -155,6 +206,10 @@
 
 @media (max-width: 640px) {
   .flow-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .checkbox-grid {
     grid-template-columns: 1fr;
   }
 }
