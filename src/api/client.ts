@@ -49,14 +49,17 @@ function withTimeout(init?: RequestInit): { init: RequestInit; clear: () => void
     signal.addEventListener('abort', () => controller.abort(), { once: true })
   }
 
+  const hasBody = init?.body !== undefined && init?.body !== null
+  const headers = {
+    ...(init?.headers ?? {}),
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+  }
+
   return {
     init: {
       ...init,
       signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init?.headers ?? {}),
-      },
+      headers,
     },
     clear: () => window.clearTimeout(timeoutId),
   }
