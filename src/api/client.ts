@@ -1,3 +1,10 @@
+import {
+  parseArtifacts,
+  parseCompileResponse,
+  parseHealthResponse,
+  parseStyle,
+  parseStyleVersion,
+} from './normalize'
 import type {
   ApiError,
   Artifact,
@@ -10,6 +17,7 @@ import type {
 } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? 10000)
 
 function toApiError(error: unknown): ApiError {
   if (
@@ -32,22 +40,48 @@ function toApiError(error: unknown): ApiError {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response
+function withTimeout(init?: RequestInit): { init: RequestInit; clear: () => void } {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS)
 
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+  const signal = init?.signal
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort(), { once: true })
+  }
+
+  return {
+    init: {
       ...init,
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...(init?.headers ?? {}),
       },
-    })
-  } catch {
+    },
+    clear: () => window.clearTimeout(timeoutId),
+  }
+}
+
+async function request(path: string, init?: RequestInit): Promise<unknown> {
+  const { init: enhancedInit, clear } = withTimeout(init)
+  let response: Response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, enhancedInit)
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw {
+        message: `Request timed out after ${API_TIMEOUT_MS}ms.`,
+        status: 0,
+      } satisfies ApiError
+    }
+
     throw {
       message: 'Network error. Could not reach backend service.',
       status: 0,
     } satisfies ApiError
+  } finally {
+    clear()
   }
 
   if (!response.ok) {
@@ -75,19 +109,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } satisfies ApiError
   }
 
-  return (await response.json()) as T
+  return response.json()
 }
 
 async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const { init: enhancedInit, clear } = withTimeout(init)
   let response: Response
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, init)
-  } catch {
+    response = await fetch(`${API_BASE_URL}${path}`, enhancedInit)
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw {
+        message: `Request timed out after ${API_TIMEOUT_MS}ms.`,
+        status: 0,
+      } satisfies ApiError
+    }
+
     throw {
       message: 'Network error. Could not reach backend service.',
       status: 0,
     } satisfies ApiError
+  } finally {
+    clear()
   }
 
   if (!response.ok) {
@@ -101,40 +145,43 @@ async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
 }
 
 export async function getHealth(): Promise<HealthResponse> {
-  return request<HealthResponse>('/health')
+  return parseHealthResponse(await request('/health'))
 }
 
 export async function createStyle(payload: StyleCreate): Promise<Style> {
-  return request<Style>('/styles', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  return parseStyle(
+    await request('/styles', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  )
 }
 
 export async function createStyleVersion(
   styleId: string,
   payload: StyleVersionCreate,
 ): Promise<StyleVersion> {
-  return request<StyleVersion>(`/styles/${styleId}/versions`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  return parseStyleVersion(
+    await request(`/styles/${styleId}/versions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  )
 }
 
 export async function compileStyleVersion(
   styleId: string,
   version: string,
 ): Promise<CompileResponse> {
-  return request<CompileResponse>(
-    `/styles/${styleId}/versions/${version}/compile?target=captureone`,
-    {
+  return parseCompileResponse(
+    await request(`/styles/${styleId}/versions/${version}/compile?target=captureone`, {
       method: 'POST',
-    },
+    }),
   )
 }
 
 export async function listStyleArtifacts(styleId: string): Promise<Artifact[]> {
-  return request<Artifact[]>(`/styles/${styleId}/artifacts`)
+  return parseArtifacts(await request(`/styles/${styleId}/artifacts`))
 }
 
 export async function downloadArtifact(artifactId: string): Promise<Blob> {
