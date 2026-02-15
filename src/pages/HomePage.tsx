@@ -319,6 +319,7 @@ export function HomePage() {
                 <Switch
                   checked={showAllProperties}
                   onChange={(event) => setShowAllProperties(event.target.checked)}
+                  inputProps={{ 'aria-label': 'show-all-properties' }}
                 />
               }
               label={

@@ -69,6 +69,26 @@ npm run lint
 npm run build
 ```
 
+## End-to-End Tests (Playwright)
+
+Install browsers (first time only):
+
+```bash
+npx playwright install chromium
+```
+
+Run headless E2E tests:
+
+```bash
+npm run test:e2e
+```
+
+Run interactive Playwright UI:
+
+```bash
+npm run test:e2e:ui
+```
+
 ## Run With Docker
 
 Build image from `frontend/`:
