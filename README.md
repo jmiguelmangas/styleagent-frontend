@@ -130,6 +130,11 @@ Notes:
 - On failures, Playwright now keeps trace, screenshots, and video artifacts.
 - In CI, artifacts are available in the Playwright report output.
 
+## Automation
+
+- `.github/dependabot.yml` creates weekly dependency update PRs
+- `.github/workflows/sbom.yml` generates a CycloneDX SBOM artifact
+
 ## Run With Docker
 
 Build image from `frontend/`:
