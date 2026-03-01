@@ -66,6 +66,13 @@ export interface CompileResponse {
 }
 
 export type RunnerExecutionMode = 'api' | 'host'
+export type HostErrorCode =
+  | 'APP_NOT_INSTALLED'
+  | 'APPLE_EVENT_DENIED'
+  | 'OPEN_TIMEOUT'
+  | 'IMPORT_DIR_NOT_WRITABLE'
+  | 'DOWNLOAD_FAILED'
+export type HostLaunchMethod = 'open' | 'cli'
 
 export interface RunnerJobCreate {
   job_type: 'compile_captureone'
@@ -78,21 +85,31 @@ export interface RunnerJobCreate {
 
 export interface RunnerJob {
   job_id: string
+  job_type: 'compile_captureone'
   status: 'pending' | 'picked_up' | 'running' | 'succeeded' | 'failed'
   payload: {
     style_id: string
     version: string
     execution_mode?: RunnerExecutionMode
   }
-  result: Record<string, unknown> | null
+  result: RunnerJobResult | null
   error: string | null
 }
 
 export interface HostIntegrationResult {
   mode: 'host'
+  launch_method?: HostLaunchMethod
   captureone_app_path?: string
   imported_costyle_path?: string
-  error_code?: string
+  error_code?: HostErrorCode
   error_message?: string
   error_details?: Record<string, unknown>
+}
+
+export interface RunnerJobResult {
+  artifact_id?: string
+  sha256?: string
+  download_url?: string
+  host_integration?: HostIntegrationResult
+  [key: string]: unknown
 }

@@ -29,8 +29,8 @@ import {
 import type {
   ApiError,
   Artifact,
-  CompileResponse,
-  HostIntegrationResult,
+  HostErrorCode,
+  RunnerJobResult,
   RunnerExecutionMode,
   SafePolicy,
   Style,
@@ -69,7 +69,7 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
 type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
 type EditorMode = 'guided' | 'advanced'
 
-function mapHostErrorMessage(errorCode: string | undefined, fallback: string): string {
+function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: string): string {
   switch (errorCode) {
     case 'APP_NOT_INSTALLED':
       return 'Capture One is not installed or app path is invalid.'
@@ -100,11 +100,11 @@ export function HomePage() {
 
   const [createdStyle, setCreatedStyle] = useState<Style | null>(null)
   const [createdVersion, setCreatedVersion] = useState<StyleVersion | null>(null)
-  const [compileResult, setCompileResult] = useState<CompileResponse | null>(null)
+  const [compileResult, setCompileResult] = useState<RunnerJobResult | null>(null)
   const [runnerJobId, setRunnerJobId] = useState<string | null>(null)
   const [runnerJobStatus, setRunnerJobStatus] = useState<string | null>(null)
   const [hostImportedPath, setHostImportedPath] = useState<string | null>(null)
-  const [hostErrorCode, setHostErrorCode] = useState<string | null>(null)
+  const [hostErrorCode, setHostErrorCode] = useState<HostErrorCode | null>(null)
   const [hostErrorDetails, setHostErrorDetails] = useState<Record<string, unknown> | null>(null)
   const [showHostErrorDetails, setShowHostErrorDetails] = useState(false)
   const [isAutoPollingJob, setIsAutoPollingJob] = useState(false)
@@ -319,14 +319,14 @@ export function HomePage() {
       const job = await getRunnerJob(runnerJobId)
       setRunnerJobStatus(job.status)
       if (job.status === 'succeeded' && job.result) {
-        const result = job.result as Partial<CompileResponse>
+        const result = job.result
         if (typeof result.artifact_id === 'string' && typeof result.sha256 === 'string' && typeof result.download_url === 'string') {
           setCompileResult({
             artifact_id: result.artifact_id,
             sha256: result.sha256,
             download_url: result.download_url,
           })
-          const host = (job.result as { host_integration?: HostIntegrationResult }).host_integration
+          const host = job.result.host_integration
           if (host?.mode === 'host' && host.imported_costyle_path) {
             setHostImportedPath(host.imported_costyle_path)
           }
@@ -334,7 +334,7 @@ export function HomePage() {
         }
       }
       if (job.status === 'failed' && job.error) {
-        const host = (job.result as { host_integration?: HostIntegrationResult } | null)?.host_integration
+        const host = job.result?.host_integration
         if (host?.error_code) {
           setHostErrorCode(host.error_code)
         }
@@ -374,7 +374,7 @@ export function HomePage() {
         }
         setRunnerJobStatus(job.status)
         if (job.status === 'succeeded' && job.result) {
-          const result = job.result as Partial<CompileResponse>
+          const result = job.result
           if (
             typeof result.artifact_id === 'string' &&
             typeof result.sha256 === 'string' &&
@@ -385,7 +385,7 @@ export function HomePage() {
               sha256: result.sha256,
               download_url: result.download_url,
             })
-            const host = (job.result as { host_integration?: HostIntegrationResult }).host_integration
+            const host = job.result.host_integration
             if (host?.mode === 'host' && host.imported_costyle_path) {
               setHostImportedPath(host.imported_costyle_path)
             }
@@ -394,7 +394,7 @@ export function HomePage() {
           window.clearInterval(timer)
           setIsAutoPollingJob(false)
         } else if (job.status === 'failed') {
-          const host = (job.result as { host_integration?: HostIntegrationResult } | null)?.host_integration
+          const host = job.result?.host_integration
           if (host?.error_code) {
             setHostErrorCode(host.error_code)
           }
