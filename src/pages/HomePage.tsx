@@ -69,7 +69,7 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
   },
 }
 
-type ActionKey = 'ai' | 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
+type ActionKey = 'ai' | 'ai_save' | 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
 type EditorMode = 'guided' | 'advanced'
 
 function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: string): string {
@@ -196,6 +196,72 @@ export function HomePage() {
       })
     } catch (err) {
       setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
+  async function handleGenerateAndSaveStyleSpec() {
+    const prompt = aiPrompt.trim()
+    if (!prompt) {
+      setFlowError({ message: 'Prompt is required to generate a style.', status: 400 })
+      return
+    }
+
+    const normalizedVersion = version.trim()
+    if (!normalizedVersion) {
+      setFlowError({ message: 'Version is required before saving.', status: 400 })
+      return
+    }
+
+    setActiveAction('ai_save')
+    setFlowError(null)
+    setCompileResult(null)
+    setRunnerJobId(null)
+    setRunnerJobStatus(null)
+    setHostImportedPath(null)
+    setHostErrorCode(null)
+    setHostErrorDetails(null)
+    setShowHostErrorDetails(false)
+
+    try {
+      const generated = await generateStyleSpec({
+        prompt,
+        intent: aiIntents.length > 0 ? aiIntents : undefined,
+        target: 'captureone',
+      })
+
+      applyGeneratedStyleSpec(generated.style_spec)
+      setAiMeta({
+        provider: generated.provider,
+        model: generated.model,
+        rationale: generated.rationale,
+        warnings: generated.warnings,
+      })
+
+      const normalizedStyleName = generated.style_spec.name.trim()
+      const style = await createStyle({ name: normalizedStyleName })
+      setCreatedStyle(style)
+
+      const created = await createStyleVersion(style.style_id, {
+        version: normalizedVersion,
+        style_spec: generated.style_spec,
+        safe_policy: generated.style_spec.safe,
+      })
+      setCreatedVersion(created)
+
+      await refreshArtifactHistory(style.style_id)
+    } catch (err) {
+      const apiError = toApiError(err)
+      if (apiError.status === 409) {
+        setFlowError({
+          status: 409,
+          message:
+            'Style or version already exists. Change style name/version and retry Generate + Save.',
+        })
+      } else {
+        setFlowError(apiError)
+      }
     } finally {
       setActiveAction(null)
     }
@@ -524,7 +590,11 @@ export function HomePage() {
           onGenerate={() => {
             void handleGenerateStyleSpec()
           }}
-          loading={isLoading('ai')}
+          onGenerateAndSave={() => {
+            void handleGenerateAndSaveStyleSpec()
+          }}
+          generating={isLoading('ai')}
+          generatingAndSaving={isLoading('ai_save')}
           meta={aiMeta}
         />
 

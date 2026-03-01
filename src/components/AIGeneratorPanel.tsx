@@ -25,7 +25,9 @@ type AIGeneratorPanelProps = {
   onPromptChange: (next: string) => void
   onIntentsChange: (next: string[]) => void
   onGenerate: () => void
-  loading: boolean
+  onGenerateAndSave: () => void
+  generating: boolean
+  generatingAndSaving: boolean
   meta: AIGenerationMeta | null
 }
 
@@ -46,7 +48,9 @@ export function AIGeneratorPanel({
   onPromptChange,
   onIntentsChange,
   onGenerate,
-  loading,
+  onGenerateAndSave,
+  generating,
+  generatingAndSaving,
   meta,
 }: AIGeneratorPanelProps) {
   return (
@@ -98,9 +102,19 @@ export function AIGeneratorPanel({
         sx={{ mt: 1.5 }}
         startIcon={<AutoFixHighIcon />}
         onClick={onGenerate}
-        disabled={loading || !prompt.trim()}
+        disabled={generating || generatingAndSaving || !prompt.trim()}
       >
-        {loading ? 'Generating style...' : 'Generate StyleSpec'}
+        {generating ? 'Generating style...' : 'Generate StyleSpec'}
+      </Button>
+
+      <Button
+        variant="outlined"
+        sx={{ mt: 1.2 }}
+        startIcon={<AutoFixHighIcon />}
+        onClick={onGenerateAndSave}
+        disabled={generating || generatingAndSaving || !prompt.trim()}
+      >
+        {generatingAndSaving ? 'Generating and saving...' : 'Generate + Save Version'}
       </Button>
 
       {meta && (

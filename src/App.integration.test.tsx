@@ -87,4 +87,102 @@ describe('App integration', () => {
     })
     expect(await screen.findByText(/Generated with/i)).toBeInTheDocument()
   })
+
+  it('generates and saves style/version in one action', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input)
+
+        if (url.endsWith('/health')) {
+          return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+        }
+
+        if (url.endsWith('/ai/generate-style-spec') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              style_spec: {
+                name: 'AI Auto Save',
+                intent: ['cinematic'],
+                captureone: {
+                  keys: {
+                    Exposure: 0.1,
+                    Contrast: 8,
+                  },
+                },
+                safe: {
+                  remove_lens_light_falloff: true,
+                  remove_white_balance: true,
+                  remove_exposure: false,
+                },
+              },
+              rationale: 'Generated from prompt.',
+              warnings: [],
+              provider: 'mock',
+              model: 'mock-v1',
+            }),
+            { status: 200 },
+          )
+        }
+
+        if (url.endsWith('/styles') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              style_id: 'style_ai_1',
+              name: 'AI Auto Save',
+              slug: 'ai-auto-save',
+              created_at: '2026-03-01T00:00:00Z',
+            }),
+            { status: 200 },
+          )
+        }
+
+        if (url.endsWith('/styles/style_ai_1/versions') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              style_id: 'style_ai_1',
+              version: 'v1',
+              style_spec: {
+                name: 'AI Auto Save',
+                intent: ['cinematic'],
+                captureone: {
+                  keys: {
+                    Exposure: 0.1,
+                    Contrast: 8,
+                  },
+                },
+              },
+              safe_policy: {
+                remove_lens_light_falloff: true,
+                remove_white_balance: true,
+                remove_exposure: false,
+              },
+              created_at: '2026-03-01T00:00:05Z',
+            }),
+            { status: 200 },
+          )
+        }
+
+        if (url.endsWith('/styles/style_ai_1/artifacts')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
+
+        return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+      }),
+    )
+
+    render(<App />)
+
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'cinematic style')
+    await user.click(screen.getByRole('button', { name: 'Generate + Save Version' }))
+
+    const styleIdLabel = await screen.findByText('Style ID:')
+    const versionLabel = await screen.findByText('Version:')
+
+    await waitFor(() => {
+      expect(styleIdLabel.parentElement).toHaveTextContent('style_ai_1')
+      expect(versionLabel.parentElement).toHaveTextContent('v1')
+    })
+  })
 })

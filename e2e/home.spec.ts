@@ -29,6 +29,29 @@ function mockApi(page: Page) {
     })
   })
 
+  page.route('**/ai/generate-style-spec', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        style_spec: {
+          name: 'AI Nolan Warm',
+          intent: ['cinematic', 'warm'],
+          captureone: { keys: { Exposure: 0.2, Contrast: 8 } },
+          safe: {
+            remove_lens_light_falloff: true,
+            remove_white_balance: true,
+            remove_exposure: false,
+          },
+        },
+        rationale: 'Generated from prompt.',
+        warnings: [],
+        provider: 'mock',
+        model: 'mock-v1',
+      }),
+    })
+  })
+
   page.route('**/styles/style_123/versions', async (route) => {
     await route.fulfill({
       status: 200,
@@ -122,4 +145,16 @@ test('runs the core flow with mocked backend', async ({ page }) => {
   await expect(page.locator('.flow-output').getByText('Artifact ID: artifact_001')).toBeVisible()
   await expect(page.locator('.flow-output').getByText('SHA256: abc123')).toBeVisible()
   await expect(page.getByText('nolan-warm-v1.costyle')).toBeVisible()
+})
+
+test('generates and saves version directly from AI panel', async ({ page }) => {
+  mockApi(page)
+  await page.goto('/')
+
+  await page.getByRole('textbox', { name: 'Prompt' }).fill('cinematic warm look')
+  await page.getByRole('button', { name: 'Generate + Save Version' }).click()
+
+  await expect(page.locator('.flow-output').getByText('Style ID: style_123')).toBeVisible()
+  await expect(page.locator('.flow-output').getByText('Version: v1')).toBeVisible()
+  await expect(page.getByText('Generated with')).toBeVisible()
 })
