@@ -30,6 +30,21 @@ type StyleSpecControlsProps = {
 
 const INTENT_OPTIONS = ['cinematic', 'warm', 'cool', 'natural', 'high-contrast', 'vintage']
 const TONE_CURVE_OPTIONS = ['Film Standard', 'Linear', 'Matte Lift', 'Punchy Contrast']
+const CORE_NUMERIC_CONTROLS = [
+  { key: 'Exposure', label: 'Exposure', min: -2, max: 2, step: 0.1, precision: 1 },
+  { key: 'Contrast', label: 'Contrast', min: -100, max: 100, step: 1, precision: 0 },
+  { key: 'Saturation', label: 'Saturation', min: -100, max: 100, step: 1, precision: 0 },
+  { key: 'Clarity', label: 'Clarity', min: -100, max: 100, step: 1, precision: 0 },
+] as const
+const COLOR_NUMERIC_CONTROLS = [
+  { key: 'WhiteBalanceTemperature', label: 'Temperature', min: 2000, max: 12000, step: 50, precision: 0 },
+  { key: 'WhiteBalanceTint', label: 'Tint', min: -50, max: 50, step: 1, precision: 0 },
+  { key: 'Highlights', label: 'Highlights', min: -100, max: 100, step: 1, precision: 0 },
+  { key: 'Shadows', label: 'Shadows', min: -100, max: 100, step: 1, precision: 0 },
+  { key: 'ColorBalanceRed', label: 'Red Balance', min: -50, max: 50, step: 1, precision: 0 },
+  { key: 'ColorBalanceGreen', label: 'Green Balance', min: -50, max: 50, step: 1, precision: 0 },
+  { key: 'ColorBalanceBlue', label: 'Blue Balance', min: -50, max: 50, step: 1, precision: 0 },
+] as const
 
 export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSpecControlsProps) {
   const [newPropertyKey, setNewPropertyKey] = useState('')
@@ -117,47 +132,25 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
       </Stack>
 
       <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-        <Box>
-          <Typography variant="body2">Exposure ({getNumericKey('Exposure', 0).toFixed(1)})</Typography>
-          <Slider
-            value={getNumericKey('Exposure', 0)}
-            min={-2}
-            max={2}
-            step={0.1}
-            marks
-            onChange={(_, value) => updateNumericKey('Exposure', Number(value))}
-          />
-        </Box>
-        <Box>
-          <Typography variant="body2">Contrast ({Math.round(getNumericKey('Contrast', 0))})</Typography>
-          <Slider
-            value={getNumericKey('Contrast', 0)}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(_, value) => updateNumericKey('Contrast', Number(value))}
-          />
-        </Box>
-        <Box>
-          <Typography variant="body2">Saturation ({Math.round(getNumericKey('Saturation', 0))})</Typography>
-          <Slider
-            value={getNumericKey('Saturation', 0)}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(_, value) => updateNumericKey('Saturation', Number(value))}
-          />
-        </Box>
-        <Box>
-          <Typography variant="body2">Clarity ({Math.round(getNumericKey('Clarity', 0))})</Typography>
-          <Slider
-            value={getNumericKey('Clarity', 0)}
-            min={-100}
-            max={100}
-            step={1}
-            onChange={(_, value) => updateNumericKey('Clarity', Number(value))}
-          />
-        </Box>
+        {CORE_NUMERIC_CONTROLS.map((control) => {
+          const value = getNumericKey(control.key, 0)
+          const display = control.precision > 0 ? value.toFixed(control.precision) : Math.round(value)
+          return (
+            <Box key={control.key}>
+              <Typography variant="body2">
+                {control.label} ({display})
+              </Typography>
+              <Slider
+                value={value}
+                min={control.min}
+                max={control.max}
+                step={control.step}
+                marks={control.key === 'Exposure'}
+                onChange={(_, next) => updateNumericKey(control.key, Number(next))}
+              />
+            </Box>
+          )
+        })}
         <Box>
           <FormControl fullWidth>
             <InputLabel id="tone-curve-label">Tone Curve</InputLabel>
@@ -193,6 +186,30 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
             }
           />
         </Box>
+      </Box>
+
+      <Divider sx={{ my: 2 }} />
+      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+        Color and tonal controls
+      </Typography>
+      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+        {COLOR_NUMERIC_CONTROLS.map((control) => {
+          const value = getNumericKey(control.key, 0)
+          return (
+            <Box key={control.key}>
+              <Typography variant="body2">
+                {control.label} ({Math.round(value)})
+              </Typography>
+              <Slider
+                value={value}
+                min={control.min}
+                max={control.max}
+                step={control.step}
+                onChange={(_, next) => updateNumericKey(control.key, Number(next))}
+              />
+            </Box>
+          )
+        })}
       </Box>
 
       <Divider sx={{ my: 2 }} />
