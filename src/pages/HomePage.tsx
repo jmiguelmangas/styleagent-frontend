@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 
 import DataObjectIcon from '@mui/icons-material/DataObject'
+import DnsIcon from '@mui/icons-material/Dns'
+import LaptopMacIcon from '@mui/icons-material/LaptopMac'
 import TuneIcon from '@mui/icons-material/Tune'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import {
@@ -14,9 +16,11 @@ import {
 
 import {
   compileStyleVersion,
+  createRunnerJob,
   createStyle,
   createStyleVersion,
   downloadArtifact,
+  getRunnerJob,
   listStyleArtifacts,
   toApiError,
 } from '../api/client'
@@ -24,6 +28,7 @@ import type {
   ApiError,
   Artifact,
   CompileResponse,
+  RunnerExecutionMode,
   SafePolicy,
   Style,
   StyleSpec,
@@ -56,7 +61,7 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
   },
 }
 
-type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history'
+type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
 type EditorMode = 'guided' | 'advanced'
 
 export function HomePage() {
@@ -68,11 +73,14 @@ export function HomePage() {
   const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
   const [jsonError, setJsonError] = useState(false)
   const [editorMode, setEditorMode] = useState<EditorMode>('guided')
+  const [executionMode, setExecutionMode] = useState<RunnerExecutionMode>('api')
   const [showAllProperties, setShowAllProperties] = useState(false)
 
   const [createdStyle, setCreatedStyle] = useState<Style | null>(null)
   const [createdVersion, setCreatedVersion] = useState<StyleVersion | null>(null)
   const [compileResult, setCompileResult] = useState<CompileResponse | null>(null)
+  const [runnerJobId, setRunnerJobId] = useState<string | null>(null)
+  const [runnerJobStatus, setRunnerJobStatus] = useState<string | null>(null)
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
@@ -160,6 +168,8 @@ export function HomePage() {
     setFlowError(null)
     setCreatedVersion(null)
     setCompileResult(null)
+    setRunnerJobId(null)
+    setRunnerJobStatus(null)
     setArtifacts([])
 
     try {
@@ -189,6 +199,8 @@ export function HomePage() {
     setActiveAction('version')
     setFlowError(null)
     setCompileResult(null)
+    setRunnerJobId(null)
+    setRunnerJobStatus(null)
 
     try {
       const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
@@ -221,11 +233,64 @@ export function HomePage() {
     setFlowError(null)
 
     try {
+      if (executionMode === 'host') {
+        const createdJob = await createRunnerJob({
+          job_type: 'compile_captureone',
+          payload: {
+            style_id: createdStyle.style_id,
+            version: createdVersion.version,
+            execution_mode: 'host',
+          },
+        })
+        setRunnerJobId(createdJob.job_id)
+        setRunnerJobStatus(createdJob.status)
+        setCompileResult(null)
+        return
+      }
+
       const compiled = await compileStyleVersion(createdStyle.style_id, createdVersion.version)
       setCompileResult(compiled)
+      setRunnerJobId(null)
+      setRunnerJobStatus(null)
       await refreshArtifactHistory(createdStyle.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
+  async function handleRefreshRunnerJob() {
+    if (!runnerJobId) {
+      setFlowError({ message: 'No runner job available. Compile in host mode first.', status: 400 })
+      return
+    }
+    if (!createdStyle) {
+      return
+    }
+
+    setActiveAction('job')
+    setFlowError(null)
+    try {
+      const job = await getRunnerJob(runnerJobId)
+      setRunnerJobStatus(job.status)
+      if (job.status === 'succeeded' && job.result) {
+        const result = job.result as Partial<CompileResponse>
+        if (typeof result.artifact_id === 'string' && typeof result.sha256 === 'string' && typeof result.download_url === 'string') {
+          setCompileResult({
+            artifact_id: result.artifact_id,
+            sha256: result.sha256,
+            download_url: result.download_url,
+          })
+          await refreshArtifactHistory(createdStyle.style_id)
+        }
+      }
+      if (job.status === 'failed' && job.error) {
+        setFlowError({ message: job.error, status: 500 })
+      }
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
       setActiveAction(null)
     }
   }
@@ -332,6 +397,30 @@ export function HomePage() {
           )}
         </Stack>
 
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 1 }}>
+          <ToggleButtonGroup
+            color="primary"
+            value={executionMode}
+            exclusive
+            onChange={(_, next: RunnerExecutionMode | null) => {
+              if (next) {
+                setExecutionMode(next)
+              }
+            }}
+            aria-label="execution-mode"
+            size="small"
+          >
+            <ToggleButton value="api" aria-label="execution-api">
+              <DnsIcon fontSize="small" sx={{ mr: 0.75 }} />
+              Backend compile
+            </ToggleButton>
+            <ToggleButton value="host" aria-label="execution-host">
+              <LaptopMacIcon fontSize="small" sx={{ mr: 0.75 }} />
+              Runner host (Capture One)
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+
         {editorMode === 'guided' ? (
           <StyleSpecControls
             spec={styleSpec}
@@ -357,7 +446,16 @@ export function HomePage() {
             {isLoading('version') ? 'Creating version...' : '2. Create Version'}
           </button>
           <button type="button" onClick={handleCompile} disabled={activeAction !== null || !createdVersion}>
-            {isLoading('compile') ? 'Compiling...' : '3. Compile'}
+            {isLoading('compile')
+              ? executionMode === 'host'
+                ? 'Queueing runner job...'
+                : 'Compiling...'
+              : executionMode === 'host'
+                ? '3. Queue Host Job'
+                : '3. Compile'}
+          </button>
+          <button type="button" onClick={handleRefreshRunnerJob} disabled={activeAction !== null || !runnerJobId}>
+            {isLoading('job') ? 'Checking job...' : 'Check Runner Job'}
           </button>
           <button type="button" onClick={handleDownloadArtifact} disabled={activeAction !== null || !compileResult}>
             {isLoading('download') ? 'Downloading...' : '4. Download Latest'}
@@ -387,6 +485,12 @@ export function HomePage() {
           </p>
           <p>
             <strong>Artifact ID:</strong> {compileResult?.artifact_id ?? '-'}
+          </p>
+          <p>
+            <strong>Runner Job:</strong> {runnerJobId ?? '-'}
+          </p>
+          <p>
+            <strong>Runner Status:</strong> {runnerJobStatus ?? '-'}
           </p>
           <p>
             <strong>SHA256:</strong> {compileResult?.sha256 ?? '-'}

@@ -64,3 +64,26 @@ export interface CompileResponse {
   sha256: string
   download_url: string
 }
+
+export type RunnerExecutionMode = 'api' | 'host'
+
+export interface RunnerJobCreate {
+  job_type: 'compile_captureone'
+  payload: {
+    style_id: string
+    version: string
+    execution_mode?: RunnerExecutionMode
+  }
+}
+
+export interface RunnerJob {
+  job_id: string
+  status: 'pending' | 'picked_up' | 'running' | 'succeeded' | 'failed'
+  payload: {
+    style_id: string
+    version: string
+    execution_mode?: RunnerExecutionMode
+  }
+  result: Record<string, unknown> | null
+  error: string | null
+}
