@@ -78,6 +78,8 @@ export interface GenerateStyleSpecResponse {
   warnings: string[]
   provider: string
   model: string
+  generation_ms?: number | null
+  fallback_used?: boolean
 }
 
 export type RunnerExecutionMode = 'api' | 'host'

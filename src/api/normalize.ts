@@ -106,6 +106,17 @@ function isGenerateStyleSpecResponse(value: unknown): value is GenerateStyleSpec
     return false
   }
 
+  if (
+    value.generation_ms !== undefined &&
+    value.generation_ms !== null &&
+    typeof value.generation_ms !== 'number'
+  ) {
+    return false
+  }
+  if (value.fallback_used !== undefined && typeof value.fallback_used !== 'boolean') {
+    return false
+  }
+
   return typeof value.provider === 'string' && typeof value.model === 'string'
 }
 

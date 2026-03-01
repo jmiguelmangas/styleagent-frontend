@@ -102,6 +102,8 @@ describe('parseGenerateStyleSpecResponse', () => {
       warnings: [],
       provider: 'ollama',
       model: 'llama3.1:8b',
+      generation_ms: 24,
+      fallback_used: false,
     })
 
     expect(parsed.provider).toBe('ollama')
@@ -117,6 +119,24 @@ describe('parseGenerateStyleSpecResponse', () => {
         warnings: ['x'],
         provider: 'mock',
         model: 'mock-v1',
+      }),
+    ).toThrow('Invalid AI generate response payload')
+  })
+
+  it('rejects invalid telemetry fields', () => {
+    expect(() =>
+      parseGenerateStyleSpecResponse({
+        style_spec: {
+          name: 'AI',
+          intent: ['warm'],
+          captureone: {
+            keys: { Exposure: 0.1 },
+          },
+        },
+        warnings: [],
+        provider: 'mock',
+        model: 'mock-v1',
+        generation_ms: 'fast',
       }),
     ).toThrow('Invalid AI generate response payload')
   })
