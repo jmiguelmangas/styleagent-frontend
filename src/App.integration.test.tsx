@@ -13,7 +13,16 @@ describe('App integration', () => {
   it('renders backend health status when API responds ok', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => new Response(JSON.stringify({ status: 'ok' }), { status: 200 })),
+      vi.fn(async (input: string | URL) => {
+        const url = String(input)
+        if (url.endsWith('/health')) {
+          return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+        }
+        if (url.includes('/ai/generations')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
+        return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+      }),
     )
 
     render(<App />)
@@ -73,6 +82,9 @@ describe('App integration', () => {
             { status: 200 },
           )
         }
+        if (url.includes('/ai/generations')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
 
         return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
       }),
@@ -128,6 +140,9 @@ describe('App integration', () => {
             }),
             { status: 200 },
           )
+        }
+        if (url.includes('/ai/generations')) {
+          return new Response(JSON.stringify([]), { status: 200 })
         }
 
         if (url.endsWith('/styles') && init?.method === 'POST') {
@@ -209,6 +224,9 @@ describe('App integration', () => {
           { status: 200 },
         )
       }
+      if (url.includes('/ai/generations')) {
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
       if (url.endsWith('/styles/style_dl_1/versions') && init?.method === 'POST') {
         return new Response(
           JSON.stringify({
@@ -286,6 +304,9 @@ describe('App integration', () => {
             { status: 429 },
           )
         }
+        if (url.includes('/ai/generations')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
         return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
       }),
     )
@@ -297,5 +318,56 @@ describe('App integration', () => {
 
     expect(await screen.findByText(/AI rate limit active\. Retry in/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Generate StyleSpec' })).toBeDisabled()
+  })
+
+  it('renders persisted AI generation history entries', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input)
+        if (url.endsWith('/health')) {
+          return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+        }
+        if (url.includes('/ai/generations')) {
+          return new Response(
+            JSON.stringify([
+              {
+                generation_id: 'gen_1',
+                created_at: '2026-03-01T00:00:00Z',
+                client_key: '127.0.0.1',
+                prompt: 'cinematic warm portrait',
+                intent: ['cinematic', 'warm'],
+                constraints: null,
+                target: 'captureone',
+                style_spec: {
+                  name: 'AI Cinematic Warm',
+                  intent: ['cinematic', 'warm'],
+                  captureone: {
+                    keys: {
+                      Exposure: 0.2,
+                      Contrast: 8,
+                    },
+                  },
+                },
+                rationale: 'Generated from prompt',
+                warnings: [],
+                provider: 'mock',
+                model: 'mock-v1',
+                generation_ms: 37,
+                fallback_used: false,
+              },
+            ]),
+            { status: 200 },
+          )
+        }
+        return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+      }),
+    )
+
+    render(<App />)
+
+    expect(await screen.findByText('AI generation history')).toBeInTheDocument()
+    expect(await screen.findByText('AI Cinematic Warm')).toBeInTheDocument()
+    expect(await screen.findByText('Prompt: cinematic warm portrait')).toBeInTheDocument()
   })
 })

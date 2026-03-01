@@ -82,6 +82,23 @@ export interface GenerateStyleSpecResponse {
   fallback_used?: boolean
 }
 
+export interface AIGenerationRecord {
+  generation_id: string
+  created_at: string
+  client_key: string
+  prompt: string
+  intent?: string[] | null
+  constraints?: Record<string, unknown> | null
+  target: 'captureone'
+  style_spec: StyleSpec
+  rationale?: string | null
+  warnings: string[]
+  provider: string
+  model: string
+  generation_ms?: number | null
+  fallback_used?: boolean
+}
+
 export type RunnerExecutionMode = 'api' | 'host'
 export type HostErrorCode =
   | 'APP_NOT_INSTALLED'
