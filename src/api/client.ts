@@ -10,6 +10,8 @@ import type {
   Artifact,
   CompileResponse,
   HealthResponse,
+  RunnerJob,
+  RunnerJobCreate,
   Style,
   StyleCreate,
   StyleVersion,
@@ -189,6 +191,17 @@ export async function listStyleArtifacts(styleId: string): Promise<Artifact[]> {
 
 export async function downloadArtifact(artifactId: string): Promise<Blob> {
   return requestBlob(`/artifacts/${artifactId}`)
+}
+
+export async function createRunnerJob(payload: RunnerJobCreate): Promise<RunnerJob> {
+  return (await request('/runner/jobs', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })) as RunnerJob
+}
+
+export async function getRunnerJob(jobId: string): Promise<RunnerJob> {
+  return (await request(`/runner/jobs/${jobId}`)) as RunnerJob
 }
 
 export { toApiError }
