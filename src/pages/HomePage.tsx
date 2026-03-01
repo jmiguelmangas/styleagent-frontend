@@ -17,7 +17,10 @@ import {
 } from '@mui/material'
 
 import {
+  applyAIChatTurn,
   compileStyleVersion,
+  createAIChatSession,
+  createAIChatTurn,
   createRunnerJob,
   createStyle,
   createStyleVersion,
@@ -29,6 +32,7 @@ import {
   toApiError,
 } from '../api/client'
 import type {
+  AIChatTurn,
   AIGenerationRecord,
   ApiError,
   Artifact,
@@ -44,6 +48,7 @@ import type {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { AIGeneratorPanel } from '../components/AIGeneratorPanel'
+import { AIChatPanel } from '../components/AIChatPanel'
 import { AIGenerationHistory } from '../components/AIGenerationHistory'
 import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
@@ -75,6 +80,8 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
 type ActionKey =
   | 'ai'
   | 'ai_save'
+  | 'ai_chat'
+  | 'ai_chat_apply'
   | 'style'
   | 'version'
   | 'compile'
@@ -136,6 +143,11 @@ export function HomePage() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   const [aiHistory, setAiHistory] = useState<AIGenerationRecord[]>([])
   const [aiHistoryLoading, setAiHistoryLoading] = useState(false)
+  const [aiChatSessionId, setAiChatSessionId] = useState<string | null>(null)
+  const [aiChatTurns, setAiChatTurns] = useState<AIChatTurn[]>([])
+  const [aiChatMessage, setAiChatMessage] = useState('')
+  const [aiChatAutoApply, setAiChatAutoApply] = useState(false)
+  const [aiChatApplyingTurnId, setAiChatApplyingTurnId] = useState<string | null>(null)
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null)
@@ -199,6 +211,82 @@ export function HomePage() {
     setStyleSpec(nextSpec)
     setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
     setJsonError(false)
+  }
+
+  async function ensureAIChatSession(): Promise<string> {
+    if (aiChatSessionId) {
+      return aiChatSessionId
+    }
+    const created = await createAIChatSession({
+      title: `Session ${new Date().toLocaleTimeString()}`,
+      style_spec: styleSpec,
+    })
+    setAiChatSessionId(created.session_id)
+    return created.session_id
+  }
+
+  function resetAIChatSession() {
+    setAiChatSessionId(null)
+    setAiChatTurns([])
+    setAiChatMessage('')
+  }
+
+  async function handleSendAIChatTurn() {
+    const message = aiChatMessage.trim()
+    if (!message) {
+      return
+    }
+    setActiveAction('ai_chat')
+    setFlowError(null)
+    try {
+      const sessionId = await ensureAIChatSession()
+      const response = await createAIChatTurn(sessionId, {
+        message,
+        auto_apply: aiChatAutoApply,
+      })
+      setAiChatSessionId(response.session.session_id)
+      setAiChatTurns((prev) => [...prev, response.turn])
+      setAiChatMessage('')
+      if (response.turn.applied || aiChatAutoApply) {
+        applyGeneratedStyleSpec(response.session.style_spec)
+      }
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
+  async function handleApplyAIChatTurn(turnId: string) {
+    if (!aiChatSessionId) {
+      setFlowError({ message: 'Start a chat session first.', status: 400 })
+      return
+    }
+    setActiveAction('ai_chat_apply')
+    setAiChatApplyingTurnId(turnId)
+    setFlowError(null)
+    try {
+      const response = await applyAIChatTurn(aiChatSessionId, turnId)
+      setAiChatTurns((prev) => prev.map((turn) => (turn.turn_id === turnId ? response.turn : turn)))
+      applyGeneratedStyleSpec(response.session.style_spec)
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setAiChatApplyingTurnId(null)
+      setActiveAction(null)
+    }
+  }
+
+  function handleRevertAIChatTurnLocal(turnId: string) {
+    const turn = aiChatTurns.find((entry) => entry.turn_id === turnId)
+    if (!turn) {
+      return
+    }
+    const nextSpec: StyleSpec = JSON.parse(JSON.stringify(styleSpec)) as StyleSpec
+    for (const change of turn.proposed_changes) {
+      nextSpec.captureone.keys[change.key] = change.from_value
+    }
+    applyGeneratedStyleSpec(nextSpec)
   }
 
   function handleUsePresetFromHistory(record: AIGenerationRecord) {
@@ -716,7 +804,7 @@ export function HomePage() {
       <section className="flow-card">
         <h2>Core Flow</h2>
 
-        <AIGeneratorPanel
+      <AIGeneratorPanel
           prompt={aiPrompt}
           intents={aiIntents}
           onPromptChange={setAiPrompt}
@@ -930,6 +1018,27 @@ export function HomePage() {
         onDownload={(artifactId, filename) => {
           void triggerDownload(artifactId, filename)
         }}
+      />
+
+      <AIChatPanel
+        sessionId={aiChatSessionId}
+        turns={aiChatTurns}
+        message={aiChatMessage}
+        autoApply={aiChatAutoApply}
+        loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
+        applyingTurnId={aiChatApplyingTurnId}
+        onMessageChange={setAiChatMessage}
+        onAutoApplyChange={setAiChatAutoApply}
+        onSend={() => {
+          void handleSendAIChatTurn()
+        }}
+        onApplyTurn={(turnId) => {
+          void handleApplyAIChatTurn(turnId)
+        }}
+        onRevertTurn={(turnId) => {
+          handleRevertAIChatTurnLocal(turnId)
+        }}
+        onResetSession={resetAIChatSession}
       />
 
       <AIGenerationHistory

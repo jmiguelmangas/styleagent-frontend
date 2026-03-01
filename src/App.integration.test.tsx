@@ -373,4 +373,114 @@ describe('App integration', () => {
     await user.click(screen.getByRole('button', { name: 'Use this preset' }))
     expect(await screen.findByDisplayValue('AI Cinematic Warm')).toBeInTheDocument()
   })
+
+  it('creates AI chat turn and applies it', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/health')) {
+          return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+        }
+        if (url.includes('/ai/generations')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
+        if (url.endsWith('/ai/chat/sessions') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              session_id: 'sess_1',
+              title: 'Session',
+              status: 'active',
+              style_spec: {
+                name: 'Base',
+                intent: ['portrait'],
+                captureone: { keys: { Exposure: 0.1, Contrast: 4 } },
+              },
+              created_at: '2026-03-01T00:00:00Z',
+              updated_at: '2026-03-01T00:00:00Z',
+            }),
+            { status: 201 },
+          )
+        }
+        if (url.endsWith('/ai/chat/sessions/sess_1/turns') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              session: {
+                session_id: 'sess_1',
+                title: 'Session',
+                status: 'active',
+                style_spec: {
+                  name: 'Base',
+                  intent: ['portrait'],
+                  captureone: { keys: { Exposure: 0.1, Contrast: 4 } },
+                },
+                created_at: '2026-03-01T00:00:00Z',
+                updated_at: '2026-03-01T00:00:00Z',
+              },
+              turn: {
+                turn_id: 'turn_1',
+                session_id: 'sess_1',
+                user_message: 'add contrast',
+                assistant_message: 'I prepared updates.',
+                proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
+                warnings: [],
+                guidance: {
+                  detected_goals: ['contrast_tuning'],
+                  reasoning_summary: 'Detected contrast goal.',
+                  suggested_next_messages: ['reduce highlights'],
+                },
+                applied: false,
+                created_at: '2026-03-01T00:00:01Z',
+              },
+            }),
+            { status: 201 },
+          )
+        }
+        if (url.endsWith('/ai/chat/sessions/sess_1/turns/turn_1/apply') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              session: {
+                session_id: 'sess_1',
+                title: 'Session',
+                status: 'active',
+                style_spec: {
+                  name: 'Base',
+                  intent: ['portrait'],
+                  captureone: { keys: { Exposure: 0.1, Contrast: 8 } },
+                },
+                created_at: '2026-03-01T00:00:00Z',
+                updated_at: '2026-03-01T00:00:02Z',
+              },
+              turn: {
+                turn_id: 'turn_1',
+                session_id: 'sess_1',
+                user_message: 'add contrast',
+                assistant_message: 'I prepared updates.',
+                proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
+                warnings: [],
+                guidance: {
+                  detected_goals: ['contrast_tuning'],
+                  reasoning_summary: 'Detected contrast goal.',
+                  suggested_next_messages: ['reduce highlights'],
+                },
+                applied: true,
+                created_at: '2026-03-01T00:00:01Z',
+              },
+            }),
+            { status: 200 },
+          )
+        }
+        return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+      }),
+    )
+
+    render(<App />)
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('textbox', { name: 'Message to AI' }), 'add contrast')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText(/Detected contrast goal/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Apply turn' }))
+    expect(await screen.findByText('Applied')).toBeInTheDocument()
+  })
 })

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseAIGenerationHistory, parseGenerateStyleSpecResponse, parseRunnerJob } from './normalize'
+import {
+  parseAIGenerationHistory,
+  parseAIChatSessionDetail,
+  parseAIChatTurnResponse,
+  parseGenerateStyleSpecResponse,
+  parseRunnerJob,
+} from './normalize'
 
 describe('parseRunnerJob', () => {
   it('accepts host integration payload with launch_method', () => {
@@ -178,5 +184,59 @@ describe('parseAIGenerationHistory', () => {
         },
       ]),
     ).toThrow('Invalid AI generation history payload')
+  })
+})
+
+describe('parseAIChat payloads', () => {
+  const session = {
+    session_id: 'sess_1',
+    title: 'Session',
+    status: 'active',
+    style_spec: {
+      name: 'Base',
+      intent: ['portrait'],
+      captureone: {
+        keys: { Exposure: 0.1, Contrast: 4 },
+      },
+      safe: {
+        remove_lens_light_falloff: true,
+        remove_white_balance: true,
+        remove_exposure: false,
+      },
+    },
+    created_at: '2026-03-01T00:00:00Z',
+    updated_at: '2026-03-01T00:00:10Z',
+  }
+
+  const turn = {
+    turn_id: 'turn_1',
+    session_id: 'sess_1',
+    user_message: 'add contrast',
+    assistant_message: 'I prepared updates.',
+    proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
+    warnings: [],
+    guidance: {
+      detected_goals: ['contrast_tuning'],
+      reasoning_summary: 'Detected contrast goal.',
+      suggested_next_messages: ['reduce highlights'],
+    },
+    applied: false,
+    created_at: '2026-03-01T00:00:12Z',
+  }
+
+  it('accepts valid chat turn response', () => {
+    const parsed = parseAIChatTurnResponse({
+      session,
+      turn,
+    })
+    expect(parsed.turn.turn_id).toBe('turn_1')
+  })
+
+  it('accepts valid chat session detail', () => {
+    const parsed = parseAIChatSessionDetail({
+      session,
+      turns: [turn],
+    })
+    expect(parsed.turns).toHaveLength(1)
   })
 })
