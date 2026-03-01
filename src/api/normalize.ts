@@ -1,6 +1,7 @@
 import type {
   Artifact,
   CompileResponse,
+  GenerateStyleSpecResponse,
   HealthResponse,
   HostErrorCode,
   HostIntegrationResult,
@@ -86,6 +87,26 @@ function isCompileResponse(value: unknown): value is CompileResponse {
     typeof value.sha256 === 'string' &&
     typeof value.download_url === 'string'
   )
+}
+
+function isGenerateStyleSpecResponse(value: unknown): value is GenerateStyleSpecResponse {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  if (!isStyleSpec(value.style_spec)) {
+    return false
+  }
+
+  if (value.rationale !== undefined && value.rationale !== null && typeof value.rationale !== 'string') {
+    return false
+  }
+
+  if (!Array.isArray(value.warnings) || !value.warnings.every((entry) => typeof entry === 'string')) {
+    return false
+  }
+
+  return typeof value.provider === 'string' && typeof value.model === 'string'
 }
 
 function isArtifact(value: unknown): value is Artifact {
@@ -217,6 +238,13 @@ export function parseStyleVersion(value: unknown): StyleVersion {
 export function parseCompileResponse(value: unknown): CompileResponse {
   if (!isCompileResponse(value)) {
     throw new Error('Invalid compile response payload')
+  }
+  return value
+}
+
+export function parseGenerateStyleSpecResponse(value: unknown): GenerateStyleSpecResponse {
+  if (!isGenerateStyleSpecResponse(value)) {
+    throw new Error('Invalid AI generate response payload')
   }
   return value
 }

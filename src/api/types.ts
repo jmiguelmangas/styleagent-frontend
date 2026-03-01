@@ -65,6 +65,21 @@ export interface CompileResponse {
   download_url: string
 }
 
+export interface GenerateStyleSpecRequest {
+  prompt: string
+  intent?: string[]
+  constraints?: Record<string, unknown>
+  target?: 'captureone'
+}
+
+export interface GenerateStyleSpecResponse {
+  style_spec: StyleSpec
+  rationale?: string | null
+  warnings: string[]
+  provider: string
+  model: string
+}
+
 export type RunnerExecutionMode = 'api' | 'host'
 export type HostErrorCode =
   | 'APP_NOT_INSTALLED'

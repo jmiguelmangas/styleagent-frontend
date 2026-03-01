@@ -1,6 +1,7 @@
 import {
   parseArtifacts,
   parseCompileResponse,
+  parseGenerateStyleSpecResponse,
   parseHealthResponse,
   parseRunnerJob,
   parseStyle,
@@ -10,6 +11,8 @@ import type {
   ApiError,
   Artifact,
   CompileResponse,
+  GenerateStyleSpecRequest,
+  GenerateStyleSpecResponse,
   HealthResponse,
   RunnerJob,
   RunnerJobCreate,
@@ -182,6 +185,17 @@ export async function compileStyleVersion(
   return parseCompileResponse(
     await request(`/styles/${styleId}/versions/${version}/compile?target=captureone`, {
       method: 'POST',
+    }),
+  )
+}
+
+export async function generateStyleSpec(
+  payload: GenerateStyleSpecRequest,
+): Promise<GenerateStyleSpecResponse> {
+  return parseGenerateStyleSpecResponse(
+    await request('/ai/generate-style-spec', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }),
   )
 }

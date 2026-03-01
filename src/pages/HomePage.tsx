@@ -22,6 +22,7 @@ import {
   createStyle,
   createStyleVersion,
   downloadArtifact,
+  generateStyleSpec,
   getRunnerJob,
   listStyleArtifacts,
   toApiError,
@@ -30,6 +31,7 @@ import type {
   ApiError,
   Artifact,
   CompileResponse,
+  GenerateStyleSpecResponse,
   HostErrorCode,
   RunnerExecutionMode,
   SafePolicy,
@@ -39,6 +41,7 @@ import type {
 } from '../api/types'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import { AIGeneratorPanel } from '../components/AIGeneratorPanel'
 import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { JsonEditor } from '../components/JsonEditor'
@@ -66,7 +69,7 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
   },
 }
 
-type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
+type ActionKey = 'ai' | 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
 type EditorMode = 'guided' | 'advanced'
 
 function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: string): string {
@@ -91,6 +94,9 @@ export function HomePage() {
 
   const [styleName, setStyleName] = useState('Nolan Warm')
   const [version, setVersion] = useState('v1')
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiIntents, setAiIntents] = useState<string[]>([])
+  const [aiMeta, setAiMeta] = useState<Pick<GenerateStyleSpecResponse, 'provider' | 'model' | 'rationale' | 'warnings'> | null>(null)
   const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
   const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
   const [jsonError, setJsonError] = useState(false)
@@ -138,6 +144,13 @@ export function HomePage() {
     setJsonError(false)
   }
 
+  function applyGeneratedStyleSpec(nextSpec: StyleSpec) {
+    setStyleSpec(nextSpec)
+    setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
+    setStyleName(nextSpec.name)
+    setJsonError(false)
+  }
+
   function parseStyleSpecInput(input: string): StyleSpec {
     const parsed = JSON.parse(input) as unknown
     if (typeof parsed !== 'object' || parsed === null) {
@@ -156,6 +169,36 @@ export function HomePage() {
     setStyleSpec(nextSpec)
     setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
     setJsonError(false)
+  }
+
+  async function handleGenerateStyleSpec() {
+    const prompt = aiPrompt.trim()
+    if (!prompt) {
+      setFlowError({ message: 'Prompt is required to generate a style.', status: 400 })
+      return
+    }
+
+    setActiveAction('ai')
+    setFlowError(null)
+
+    try {
+      const generated = await generateStyleSpec({
+        prompt,
+        intent: aiIntents.length > 0 ? aiIntents : undefined,
+        target: 'captureone',
+      })
+      applyGeneratedStyleSpec(generated.style_spec)
+      setAiMeta({
+        provider: generated.provider,
+        model: generated.model,
+        rationale: generated.rationale,
+        warnings: generated.warnings,
+      })
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
   }
 
   function updateStyleSpecJson(nextJson: string) {
@@ -472,6 +515,18 @@ export function HomePage() {
 
       <section className="flow-card">
         <h2>Core Flow</h2>
+
+        <AIGeneratorPanel
+          prompt={aiPrompt}
+          intents={aiIntents}
+          onPromptChange={setAiPrompt}
+          onIntentsChange={setAiIntents}
+          onGenerate={() => {
+            void handleGenerateStyleSpec()
+          }}
+          loading={isLoading('ai')}
+          meta={aiMeta}
+        />
 
         <label htmlFor="style-name">Style name</label>
         <input
