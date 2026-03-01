@@ -1,6 +1,7 @@
 import HistoryIcon from '@mui/icons-material/History'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RefreshIcon from '@mui/icons-material/Refresh'
-import { Alert, Chip, IconButton, Stack } from '@mui/material'
+import { Alert, Button, Chip, IconButton, Stack } from '@mui/material'
 
 import type { AIGenerationRecord } from '../api/types'
 
@@ -8,6 +9,7 @@ type AIGenerationHistoryProps = {
   records: AIGenerationRecord[]
   loading: boolean
   onRefresh: () => void
+  onUsePreset: (record: AIGenerationRecord) => void
 }
 
 function formatTimestamp(value: string): string {
@@ -18,7 +20,7 @@ function formatTimestamp(value: string): string {
   return asDate.toLocaleString()
 }
 
-export function AIGenerationHistory({ records, loading, onRefresh }: AIGenerationHistoryProps) {
+export function AIGenerationHistory({ records, loading, onRefresh, onUsePreset }: AIGenerationHistoryProps) {
   return (
     <section className="history-card">
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
@@ -56,6 +58,17 @@ export function AIGenerationHistory({ records, loading, onRefresh }: AIGeneratio
                   <Chip label={`${record.generation_ms}ms`} size="small" color="primary" variant="outlined" />
                 )}
                 {record.fallback_used && <Chip label="Fallback" size="small" color="warning" />}
+              </Stack>
+              <Stack direction="row" sx={{ mt: 1 }}>
+                <Button
+                  type="button"
+                  size="small"
+                  variant="contained"
+                  startIcon={<PlayArrowIcon />}
+                  onClick={() => onUsePreset(record)}
+                >
+                  Use this preset
+                </Button>
               </Stack>
               {record.warnings.length > 0 && (
                 <Alert severity="warning" sx={{ mt: 1 }}>

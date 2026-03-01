@@ -201,6 +201,11 @@ export function HomePage() {
     setJsonError(false)
   }
 
+  function handleUsePresetFromHistory(record: AIGenerationRecord) {
+    applyGeneratedStyleSpec(record.style_spec)
+    setFlowError(null)
+  }
+
   async function handleGenerateStyleSpec() {
     const prompt = aiPrompt.trim()
     if (!prompt) {
@@ -933,6 +938,7 @@ export function HomePage() {
         onRefresh={() => {
           void refreshAIGenerationHistory()
         }}
+        onUsePreset={handleUsePresetFromHistory}
       />
     </main>
   )
