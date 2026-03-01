@@ -99,6 +99,50 @@ export interface AIGenerationRecord {
   fallback_used?: boolean
 }
 
+export interface AIParameterChange {
+  key: string
+  from_value: number
+  to_value: number
+  reason?: string | null
+}
+
+export interface AIConversationGuidance {
+  detected_goals: string[]
+  reasoning_summary: string
+  suggested_next_messages: string[]
+}
+
+export interface AIChatSession {
+  session_id: string
+  title?: string | null
+  status: 'active' | 'archived'
+  style_spec: StyleSpec
+  created_at: string
+  updated_at: string
+}
+
+export interface AIChatTurn {
+  turn_id: string
+  session_id: string
+  user_message: string
+  assistant_message: string
+  proposed_changes: AIParameterChange[]
+  warnings: string[]
+  guidance: AIConversationGuidance
+  applied: boolean
+  created_at: string
+}
+
+export interface AIChatSessionDetail {
+  session: AIChatSession
+  turns: AIChatTurn[]
+}
+
+export interface AIChatTurnResponse {
+  session: AIChatSession
+  turn: AIChatTurn
+}
+
 export type RunnerExecutionMode = 'api' | 'host'
 export type HostErrorCode =
   | 'APP_NOT_INSTALLED'

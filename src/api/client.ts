@@ -1,4 +1,7 @@
 import {
+  parseAIChatSession,
+  parseAIChatSessionDetail,
+  parseAIChatTurnResponse,
   parseAIGenerationHistory,
   parseArtifacts,
   parseCompileResponse,
@@ -9,6 +12,9 @@ import {
   parseStyleVersion,
 } from './normalize'
 import type {
+  AIChatSession,
+  AIChatSessionDetail,
+  AIChatTurnResponse,
   AIGenerationRecord,
   ApiError,
   Artifact,
@@ -204,6 +210,42 @@ export async function generateStyleSpec(
 
 export async function listAIGenerations(limit = 20): Promise<AIGenerationRecord[]> {
   return parseAIGenerationHistory(await request(`/ai/generations?limit=${limit}`))
+}
+
+export async function createAIChatSession(payload: {
+  title?: string
+  style_spec: StyleVersion['style_spec']
+}): Promise<AIChatSession> {
+  return parseAIChatSession(
+    await request('/ai/chat/sessions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  )
+}
+
+export async function getAIChatSession(sessionId: string): Promise<AIChatSessionDetail> {
+  return parseAIChatSessionDetail(await request(`/ai/chat/sessions/${sessionId}`))
+}
+
+export async function createAIChatTurn(
+  sessionId: string,
+  payload: { message: string; auto_apply?: boolean },
+): Promise<AIChatTurnResponse> {
+  return parseAIChatTurnResponse(
+    await request(`/ai/chat/sessions/${sessionId}/turns`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  )
+}
+
+export async function applyAIChatTurn(sessionId: string, turnId: string): Promise<AIChatTurnResponse> {
+  return parseAIChatTurnResponse(
+    await request(`/ai/chat/sessions/${sessionId}/turns/${turnId}/apply`, {
+      method: 'POST',
+    }),
+  )
 }
 
 export async function listStyleArtifacts(styleId: string): Promise<Artifact[]> {

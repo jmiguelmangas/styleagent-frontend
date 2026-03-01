@@ -1,4 +1,9 @@
 import type {
+  AIChatSession,
+  AIChatSessionDetail,
+  AIChatTurn,
+  AIChatTurnResponse,
+  AIParameterChange,
   AIGenerationRecord,
   Artifact,
   CompileResponse,
@@ -169,6 +174,80 @@ function isAIGenerationRecord(value: unknown): value is AIGenerationRecord {
   return true
 }
 
+function isAIParameterChange(value: unknown): value is AIParameterChange {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (
+    typeof value.key !== 'string' ||
+    typeof value.from_value !== 'number' ||
+    typeof value.to_value !== 'number'
+  ) {
+    return false
+  }
+  if (value.reason !== undefined && value.reason !== null && typeof value.reason !== 'string') {
+    return false
+  }
+  return true
+}
+
+function isAIChatSession(value: unknown): value is AIChatSession {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (
+    typeof value.session_id !== 'string' ||
+    (value.status !== 'active' && value.status !== 'archived') ||
+    !isStyleSpec(value.style_spec) ||
+    typeof value.created_at !== 'string' ||
+    typeof value.updated_at !== 'string'
+  ) {
+    return false
+  }
+  if (value.title !== undefined && value.title !== null && typeof value.title !== 'string') {
+    return false
+  }
+  return true
+}
+
+function isAIConversationGuidance(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (
+    !Array.isArray(value.detected_goals) ||
+    !value.detected_goals.every((entry) => typeof entry === 'string') ||
+    typeof value.reasoning_summary !== 'string' ||
+    !Array.isArray(value.suggested_next_messages) ||
+    !value.suggested_next_messages.every((entry) => typeof entry === 'string')
+  ) {
+    return false
+  }
+  return true
+}
+
+function isAIChatTurn(value: unknown): value is AIChatTurn {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (
+    typeof value.turn_id !== 'string' ||
+    typeof value.session_id !== 'string' ||
+    typeof value.user_message !== 'string' ||
+    typeof value.assistant_message !== 'string' ||
+    !Array.isArray(value.proposed_changes) ||
+    !value.proposed_changes.every(isAIParameterChange) ||
+    !Array.isArray(value.warnings) ||
+    !value.warnings.every((entry) => typeof entry === 'string') ||
+    !isAIConversationGuidance(value.guidance) ||
+    typeof value.applied !== 'boolean' ||
+    typeof value.created_at !== 'string'
+  ) {
+    return false
+  }
+  return true
+}
+
 function isArtifact(value: unknown): value is Artifact {
   if (!isRecord(value)) {
     return false
@@ -314,6 +393,36 @@ export function parseAIGenerationHistory(value: unknown): AIGenerationRecord[] {
     throw new Error('Invalid AI generation history payload')
   }
   return value
+}
+
+export function parseAIChatSession(value: unknown): AIChatSession {
+  if (!isAIChatSession(value)) {
+    throw new Error('Invalid AI chat session payload')
+  }
+  return value
+}
+
+export function parseAIChatSessionDetail(value: unknown): AIChatSessionDetail {
+  if (!isRecord(value) || !isAIChatSession(value.session) || !Array.isArray(value.turns)) {
+    throw new Error('Invalid AI chat session detail payload')
+  }
+  if (!value.turns.every(isAIChatTurn)) {
+    throw new Error('Invalid AI chat session detail payload')
+  }
+  return {
+    session: value.session,
+    turns: value.turns,
+  }
+}
+
+export function parseAIChatTurnResponse(value: unknown): AIChatTurnResponse {
+  if (!isRecord(value) || !isAIChatSession(value.session) || !isAIChatTurn(value.turn)) {
+    throw new Error('Invalid AI chat turn payload')
+  }
+  return {
+    session: value.session,
+    turn: value.turn,
+  }
 }
 
 export function parseArtifacts(value: unknown): Artifact[] {
