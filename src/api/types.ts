@@ -90,6 +90,9 @@ export interface RunnerJob {
 
 export interface HostIntegrationResult {
   mode: 'host'
-  captureone_app_path: string
-  imported_costyle_path: string
+  captureone_app_path?: string
+  imported_costyle_path?: string
+  error_code?: string
+  error_message?: string
+  error_details?: Record<string, unknown>
 }
