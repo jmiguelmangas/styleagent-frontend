@@ -69,7 +69,16 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
   },
 }
 
-type ActionKey = 'ai' | 'ai_save' | 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
+type ActionKey =
+  | 'ai'
+  | 'ai_save'
+  | 'style'
+  | 'version'
+  | 'compile'
+  | 'compile_download'
+  | 'download'
+  | 'history'
+  | 'job'
 type EditorMode = 'guided' | 'advanced'
 
 function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: string): string {
@@ -538,13 +547,45 @@ export function HomePage() {
     setFlowError(null)
 
     try {
-      const blob = await downloadArtifact(artifactId)
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = filename
-      anchor.click()
-      URL.revokeObjectURL(url)
+      await downloadArtifactToFile(artifactId, filename)
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
+  async function downloadArtifactToFile(artifactId: string, filename: string) {
+    const blob = await downloadArtifact(artifactId)
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleCompileAndDownload() {
+    if (!createdStyle || !createdVersion) {
+      setFlowError({ message: 'Create style and version before compile.', status: 400 })
+      return
+    }
+    if (executionMode !== 'api') {
+      setFlowError({
+        message: 'Compile + Download is available only in Backend compile mode.',
+        status: 400,
+      })
+      return
+    }
+
+    setActiveAction('compile_download')
+    setFlowError(null)
+
+    try {
+      const compiled = await compileStyleVersion(createdStyle.style_id, createdVersion.version)
+      setCompileResult(compiled)
+      await downloadArtifactToFile(compiled.artifact_id, downloadFilename)
+      await refreshArtifactHistory(createdStyle.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
     } finally {
@@ -562,7 +603,16 @@ export function HomePage() {
       setFlowError({ message: 'Compiled artifact id is missing.', status: 500 })
       return
     }
-    await triggerDownload(artifactId, downloadFilename)
+    setActiveAction('download')
+    setFlowError(null)
+
+    try {
+      await downloadArtifactToFile(artifactId, downloadFilename)
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
   }
 
   return (
@@ -712,6 +762,13 @@ export function HomePage() {
               : executionMode === 'host'
                 ? '3. Queue Host Job'
                 : '3. Compile'}
+          </button>
+          <button
+            type="button"
+            onClick={handleCompileAndDownload}
+            disabled={activeAction !== null || !createdVersion || executionMode !== 'api'}
+          >
+            {isLoading('compile_download') ? 'Compiling and downloading...' : '3b. Compile + Download'}
           </button>
           <button type="button" onClick={handleRefreshRunnerJob} disabled={activeAction !== null || !runnerJobId}>
             {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Auto-tracking active' : 'Check Runner Job'}

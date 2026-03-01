@@ -109,6 +109,14 @@ function mockApi(page: Page) {
       body: JSON.stringify(artifacts),
     })
   })
+
+  page.route('**/artifacts/artifact_001', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/octet-stream',
+      body: 'fake-costyle-bytes',
+    })
+  })
 }
 
 test('supports guided and advanced style editing modes', async ({ page }) => {
@@ -157,4 +165,16 @@ test('generates and saves version directly from AI panel', async ({ page }) => {
   await expect(page.locator('.flow-output').getByText('Style ID: style_123')).toBeVisible()
   await expect(page.locator('.flow-output').getByText('Version: v1')).toBeVisible()
   await expect(page.getByText('Generated with')).toBeVisible()
+})
+
+test('compiles and downloads in one click', async ({ page }) => {
+  mockApi(page)
+  await page.goto('/')
+
+  await page.getByRole('button', { name: '1. Create Style' }).click()
+  await page.getByRole('button', { name: '2. Create Version' }).click()
+  await page.getByRole('button', { name: '3b. Compile + Download' }).click()
+
+  await expect(page.locator('.flow-output').getByText('Artifact ID: artifact_001')).toBeVisible()
+  await expect(page.locator('.flow-output').getByText('SHA256: abc123')).toBeVisible()
 })

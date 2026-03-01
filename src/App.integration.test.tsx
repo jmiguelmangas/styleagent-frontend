@@ -185,4 +185,83 @@ describe('App integration', () => {
       expect(versionLabel.parentElement).toHaveTextContent('v1')
     })
   })
+
+  it('compiles and downloads from one action in api mode', async () => {
+    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url.endsWith('/health')) {
+        return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+      }
+      if (url.endsWith('/styles') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            style_id: 'style_dl_1',
+            name: 'Download Ready',
+            slug: 'download-ready',
+            created_at: '2026-03-01T00:00:00Z',
+          }),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/styles/style_dl_1/versions') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            style_id: 'style_dl_1',
+            version: 'v1',
+            style_spec: {
+              name: 'Download Ready',
+              intent: ['cinematic'],
+              captureone: { keys: { Exposure: 0.1, Contrast: 8 } },
+            },
+            safe_policy: {
+              remove_lens_light_falloff: true,
+              remove_white_balance: true,
+              remove_exposure: false,
+            },
+            created_at: '2026-03-01T00:00:05Z',
+          }),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/styles/style_dl_1/versions/v1/compile?target=captureone') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            artifact_id: 'artifact_dl_1',
+            sha256: 'abc123',
+            download_url: 'http://localhost:8000/artifacts/artifact_dl_1',
+          }),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/artifacts/artifact_dl_1')) {
+        return new Response(new Blob(['costyle-bytes']), { status: 200 })
+      }
+      if (url.endsWith('/styles/style_dl_1/artifacts')) {
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
+
+      return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    render(<App />)
+
+    const user = userEvent.setup()
+    await user.clear(screen.getByLabelText('Style name'))
+    await user.type(screen.getByLabelText('Style name'), 'Download Ready')
+    await user.click(screen.getByRole('button', { name: '1. Create Style' }))
+    await user.click(screen.getByRole('button', { name: '2. Create Version' }))
+    await user.click(screen.getByRole('button', { name: '3b. Compile + Download' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Artifact ID:/).parentElement).toHaveTextContent('artifact_dl_1')
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/artifacts\/artifact_dl_1$/),
+      expect.any(Object),
+    )
+  })
 })
