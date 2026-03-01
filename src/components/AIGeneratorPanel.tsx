@@ -30,6 +30,7 @@ type AIGeneratorPanelProps = {
   onGenerateAndSave: () => void
   generating: boolean
   generatingAndSaving: boolean
+  cooldownSeconds: number
   meta: AIGenerationMeta | null
 }
 
@@ -53,8 +54,11 @@ export function AIGeneratorPanel({
   onGenerateAndSave,
   generating,
   generatingAndSaving,
+  cooldownSeconds,
   meta,
 }: AIGeneratorPanelProps) {
+  const isRateLimited = cooldownSeconds > 0
+
   return (
     <Box sx={{ mt: 1.5, p: 2, border: '1px solid #c9d3e2', borderRadius: 2, backgroundColor: '#fff' }}>
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -104,7 +108,7 @@ export function AIGeneratorPanel({
         sx={{ mt: 1.5 }}
         startIcon={<AutoFixHighIcon />}
         onClick={onGenerate}
-        disabled={generating || generatingAndSaving || !prompt.trim()}
+        disabled={generating || generatingAndSaving || isRateLimited || !prompt.trim()}
       >
         {generating ? 'Generating style...' : 'Generate StyleSpec'}
       </Button>
@@ -114,10 +118,16 @@ export function AIGeneratorPanel({
         sx={{ mt: 1.2 }}
         startIcon={<AutoFixHighIcon />}
         onClick={onGenerateAndSave}
-        disabled={generating || generatingAndSaving || !prompt.trim()}
+        disabled={generating || generatingAndSaving || isRateLimited || !prompt.trim()}
       >
         {generatingAndSaving ? 'Generating and saving...' : 'Generate + Save Version'}
       </Button>
+
+      {isRateLimited ? (
+        <Alert severity="info" sx={{ mt: 1.2 }}>
+          AI rate limit active. Retry in {cooldownSeconds}s.
+        </Alert>
+      ) : null}
 
       {meta && (
         <Stack spacing={1.2} sx={{ mt: 1.5 }}>

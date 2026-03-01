@@ -105,6 +105,8 @@ export function HomePage() {
   const [version, setVersion] = useState('v1')
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiIntents, setAiIntents] = useState<string[]>([])
+  const [aiRateLimitUntilMs, setAiRateLimitUntilMs] = useState<number | null>(null)
+  const [nowMs, setNowMs] = useState<number>(Date.now())
   const [aiMeta, setAiMeta] = useState<
     Pick<
       GenerateStyleSpecResponse,
@@ -140,9 +142,18 @@ export function HomePage() {
     }
     return `${createdStyle.slug}-${createdVersion.version}.costyle`
   }, [createdStyle, createdVersion])
+  const aiCooldownSeconds =
+    aiRateLimitUntilMs && aiRateLimitUntilMs > nowMs
+      ? Math.ceil((aiRateLimitUntilMs - nowMs) / 1000)
+      : 0
 
   function isLoading(action: ActionKey): boolean {
     return activeAction === action
+  }
+
+  function activateAiCooldown(seconds: number) {
+    const durationSeconds = Math.max(1, seconds)
+    setAiRateLimitUntilMs(Date.now() + durationSeconds * 1000)
   }
 
   function updateStyleSpecName(nextName: string) {
@@ -211,7 +222,16 @@ export function HomePage() {
         fallback_used: generated.fallback_used ?? false,
       })
     } catch (err) {
-      setFlowError(toApiError(err))
+      const apiError = toApiError(err)
+      if (apiError.status === 429) {
+        activateAiCooldown(60)
+        setFlowError({
+          status: 429,
+          message: 'AI rate limit reached. Wait a moment before generating again.',
+        })
+      } else {
+        setFlowError(apiError)
+      }
     } finally {
       setActiveAction(null)
     }
@@ -271,7 +291,13 @@ export function HomePage() {
       await refreshArtifactHistory(style.style_id)
     } catch (err) {
       const apiError = toApiError(err)
-      if (apiError.status === 409) {
+      if (apiError.status === 429) {
+        activateAiCooldown(60)
+        setFlowError({
+          status: 429,
+          message: 'AI rate limit reached. Wait a moment before generating again.',
+        })
+      } else if (apiError.status === 409) {
         setFlowError({
           status: 409,
           message:
@@ -284,6 +310,27 @@ export function HomePage() {
       setActiveAction(null)
     }
   }
+
+  useEffect(() => {
+    if (!aiRateLimitUntilMs) {
+      return
+    }
+    if (aiRateLimitUntilMs <= Date.now()) {
+      setAiRateLimitUntilMs(null)
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      const now = Date.now()
+      setNowMs(now)
+      if (aiRateLimitUntilMs <= now) {
+        setAiRateLimitUntilMs(null)
+      }
+    }, 1000)
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [aiRateLimitUntilMs])
 
   function updateStyleSpecJson(nextJson: string) {
     setStyleSpecJson(nextJson)
@@ -654,6 +701,7 @@ export function HomePage() {
           }}
           generating={isLoading('ai')}
           generatingAndSaving={isLoading('ai_save')}
+          cooldownSeconds={aiCooldownSeconds}
           meta={aiMeta}
         />
 
