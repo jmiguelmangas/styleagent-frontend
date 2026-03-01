@@ -181,3 +181,21 @@ test('compiles and downloads in one click', async ({ page }) => {
   await expect(page.locator('.flow-output').getByText('Artifact ID: artifact_001')).toBeVisible()
   await expect(page.locator('.flow-output').getByText('SHA256: abc123')).toBeVisible()
 })
+
+test('shows rate-limit cooldown when AI endpoint returns 429', async ({ page }) => {
+  mockApi(page)
+  await page.route('**/ai/generate-style-spec', async (route) => {
+    await route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'rate limit' }),
+    })
+  })
+  await page.goto('/')
+
+  await page.getByRole('textbox', { name: 'Prompt' }).fill('rate-limit prompt')
+  await page.getByRole('button', { name: 'Generate StyleSpec' }).click()
+
+  await expect(page.getByText('AI rate limit active.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Generate StyleSpec' })).toBeDisabled()
+})

@@ -269,4 +269,33 @@ describe('App integration', () => {
       expect.any(Object),
     )
   })
+
+  it('shows cooldown UI when AI endpoint is rate limited', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/health')) {
+          return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+        }
+        if (url.endsWith('/ai/generate-style-spec') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              message: 'AI generation rate limit exceeded. Please retry shortly.',
+            }),
+            { status: 429 },
+          )
+        }
+        return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+      }),
+    )
+
+    render(<App />)
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'rate limit prompt')
+    await user.click(screen.getByRole('button', { name: 'Generate StyleSpec' }))
+
+    expect(await screen.findByText(/AI rate limit active\. Retry in/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Generate StyleSpec' })).toBeDisabled()
+  })
 })
