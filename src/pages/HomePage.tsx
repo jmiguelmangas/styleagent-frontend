@@ -7,6 +7,8 @@ import TuneIcon from '@mui/icons-material/Tune'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import {
   Alert,
+  Collapse,
+  IconButton,
   FormControlLabel,
   Stack,
   Switch,
@@ -35,6 +37,8 @@ import type {
   StyleSpec,
   StyleVersion,
 } from '../api/types'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { JsonEditor } from '../components/JsonEditor'
@@ -65,6 +69,23 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
 type ActionKey = 'style' | 'version' | 'compile' | 'download' | 'history' | 'job'
 type EditorMode = 'guided' | 'advanced'
 
+function mapHostErrorMessage(errorCode: string | undefined, fallback: string): string {
+  switch (errorCode) {
+    case 'APP_NOT_INSTALLED':
+      return 'Capture One is not installed or app path is invalid.'
+    case 'APPLE_EVENT_DENIED':
+      return 'Capture One automation permission denied. Check macOS Privacy > Automation.'
+    case 'OPEN_TIMEOUT':
+      return 'Capture One did not open the style file in time.'
+    case 'IMPORT_DIR_NOT_WRITABLE':
+      return 'Runner cannot write the local Capture One import directory.'
+    case 'DOWNLOAD_FAILED':
+      return 'Runner could not download the compiled artifact from backend.'
+    default:
+      return fallback
+  }
+}
+
 export function HomePage() {
   const { data, error, loading } = useHealth()
 
@@ -83,6 +104,9 @@ export function HomePage() {
   const [runnerJobId, setRunnerJobId] = useState<string | null>(null)
   const [runnerJobStatus, setRunnerJobStatus] = useState<string | null>(null)
   const [hostImportedPath, setHostImportedPath] = useState<string | null>(null)
+  const [hostErrorCode, setHostErrorCode] = useState<string | null>(null)
+  const [hostErrorDetails, setHostErrorDetails] = useState<Record<string, unknown> | null>(null)
+  const [showHostErrorDetails, setShowHostErrorDetails] = useState(false)
   const [isAutoPollingJob, setIsAutoPollingJob] = useState(false)
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
 
@@ -175,6 +199,9 @@ export function HomePage() {
     setRunnerJobId(null)
     setRunnerJobStatus(null)
     setHostImportedPath(null)
+    setHostErrorCode(null)
+    setHostErrorDetails(null)
+    setShowHostErrorDetails(false)
     setArtifacts([])
 
     try {
@@ -207,6 +234,9 @@ export function HomePage() {
     setRunnerJobId(null)
     setRunnerJobStatus(null)
     setHostImportedPath(null)
+    setHostErrorCode(null)
+    setHostErrorDetails(null)
+    setShowHostErrorDetails(false)
 
     try {
       const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
@@ -251,6 +281,9 @@ export function HomePage() {
         setRunnerJobId(createdJob.job_id)
         setRunnerJobStatus(createdJob.status)
         setHostImportedPath(null)
+        setHostErrorCode(null)
+        setHostErrorDetails(null)
+        setShowHostErrorDetails(false)
         setCompileResult(null)
         return
       }
@@ -260,6 +293,9 @@ export function HomePage() {
       setRunnerJobId(null)
       setRunnerJobStatus(null)
       setHostImportedPath(null)
+      setHostErrorCode(null)
+      setHostErrorDetails(null)
+      setShowHostErrorDetails(false)
       await refreshArtifactHistory(createdStyle.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
@@ -291,14 +327,21 @@ export function HomePage() {
             download_url: result.download_url,
           })
           const host = (job.result as { host_integration?: HostIntegrationResult }).host_integration
-          if (host?.mode === 'host') {
+          if (host?.mode === 'host' && host.imported_costyle_path) {
             setHostImportedPath(host.imported_costyle_path)
           }
           await refreshArtifactHistory(createdStyle.style_id)
         }
       }
       if (job.status === 'failed' && job.error) {
-        setFlowError({ message: job.error, status: 500 })
+        const host = (job.result as { host_integration?: HostIntegrationResult } | null)?.host_integration
+        if (host?.error_code) {
+          setHostErrorCode(host.error_code)
+        }
+        if (host?.error_details && typeof host.error_details === 'object') {
+          setHostErrorDetails(host.error_details)
+        }
+        setFlowError({ message: mapHostErrorMessage(host?.error_code, job.error), status: 500 })
       }
     } catch (err) {
       setFlowError(toApiError(err))
@@ -343,7 +386,7 @@ export function HomePage() {
               download_url: result.download_url,
             })
             const host = (job.result as { host_integration?: HostIntegrationResult }).host_integration
-            if (host?.mode === 'host') {
+            if (host?.mode === 'host' && host.imported_costyle_path) {
               setHostImportedPath(host.imported_costyle_path)
             }
             await refreshArtifactHistory(createdStyle.style_id)
@@ -351,8 +394,15 @@ export function HomePage() {
           window.clearInterval(timer)
           setIsAutoPollingJob(false)
         } else if (job.status === 'failed') {
+          const host = (job.result as { host_integration?: HostIntegrationResult } | null)?.host_integration
+          if (host?.error_code) {
+            setHostErrorCode(host.error_code)
+          }
+          if (host?.error_details && typeof host.error_details === 'object') {
+            setHostErrorDetails(host.error_details)
+          }
           if (job.error) {
-            setFlowError({ message: job.error, status: 500 })
+            setFlowError({ message: mapHostErrorMessage(host?.error_code, job.error), status: 500 })
           }
           window.clearInterval(timer)
           setIsAutoPollingJob(false)
@@ -554,6 +604,28 @@ export function HomePage() {
         </div>
 
         {flowError && <ErrorBanner error={flowError} />}
+        {hostErrorCode && (
+          <Alert
+            severity="error"
+            sx={{ mt: 1.5 }}
+            action={
+              <IconButton
+                aria-label="toggle-host-error-details"
+                size="small"
+                onClick={() => setShowHostErrorDetails((value) => !value)}
+              >
+                {showHostErrorDetails ? <ExpandLessIcon fontSize="inherit" /> : <ExpandMoreIcon fontSize="inherit" />}
+              </IconButton>
+            }
+          >
+            Host execution error: <strong>{hostErrorCode}</strong>
+            <Collapse in={showHostErrorDetails} unmountOnExit>
+              <pre style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(hostErrorDetails ?? {}, null, 2)}
+              </pre>
+            </Collapse>
+          </Alert>
+        )}
 
         <div className="flow-output">
           <p>
