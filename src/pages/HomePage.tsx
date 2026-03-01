@@ -105,7 +105,12 @@ export function HomePage() {
   const [version, setVersion] = useState('v1')
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiIntents, setAiIntents] = useState<string[]>([])
-  const [aiMeta, setAiMeta] = useState<Pick<GenerateStyleSpecResponse, 'provider' | 'model' | 'rationale' | 'warnings'> | null>(null)
+  const [aiMeta, setAiMeta] = useState<
+    Pick<
+      GenerateStyleSpecResponse,
+      'provider' | 'model' | 'rationale' | 'warnings' | 'generation_ms' | 'fallback_used'
+    > | null
+  >(null)
   const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
   const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
   const [jsonError, setJsonError] = useState(false)
@@ -202,6 +207,8 @@ export function HomePage() {
         model: generated.model,
         rationale: generated.rationale,
         warnings: generated.warnings,
+        generation_ms: generated.generation_ms ?? null,
+        fallback_used: generated.fallback_used ?? false,
       })
     } catch (err) {
       setFlowError(toApiError(err))
@@ -246,6 +253,8 @@ export function HomePage() {
         model: generated.model,
         rationale: generated.rationale,
         warnings: generated.warnings,
+        generation_ms: generated.generation_ms ?? null,
+        fallback_used: generated.fallback_used ?? false,
       })
 
       const normalizedStyleName = generated.style_spec.name.trim()

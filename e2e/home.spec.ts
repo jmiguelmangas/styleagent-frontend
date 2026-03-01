@@ -48,6 +48,8 @@ function mockApi(page: Page) {
         warnings: [],
         provider: 'mock',
         model: 'mock-v1',
+        generation_ms: 37,
+        fallback_used: false,
       }),
     })
   })
@@ -165,6 +167,7 @@ test('generates and saves version directly from AI panel', async ({ page }) => {
   await expect(page.locator('.flow-output').getByText('Style ID: style_123')).toBeVisible()
   await expect(page.locator('.flow-output').getByText('Version: v1')).toBeVisible()
   await expect(page.getByText('Generated with')).toBeVisible()
+  await expect(page.getByText('Latency: 37ms')).toBeVisible()
 })
 
 test('compiles and downloads in one click', async ({ page }) => {

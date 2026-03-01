@@ -67,6 +67,8 @@ describe('App integration', () => {
               warnings: [],
               provider: 'mock',
               model: 'mock-v1',
+              generation_ms: 42,
+              fallback_used: false,
             }),
             { status: 200 },
           )
@@ -86,6 +88,7 @@ describe('App integration', () => {
       expect(screen.getByDisplayValue('AI Golden Hour')).toBeInTheDocument()
     })
     expect(await screen.findByText(/Generated with/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Latency:\s*42ms/)).toBeInTheDocument()
   })
 
   it('generates and saves style/version in one action', async () => {
@@ -120,6 +123,8 @@ describe('App integration', () => {
               warnings: [],
               provider: 'mock',
               model: 'mock-v1',
+              generation_ms: 51,
+              fallback_used: false,
             }),
             { status: 200 },
           )

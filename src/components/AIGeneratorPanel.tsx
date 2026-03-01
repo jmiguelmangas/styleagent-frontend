@@ -17,6 +17,8 @@ type AIGenerationMeta = {
   model: string
   rationale?: string | null
   warnings: string[]
+  generation_ms?: number | null
+  fallback_used?: boolean
 }
 
 type AIGeneratorPanelProps = {
@@ -122,7 +124,13 @@ export function AIGeneratorPanel({
           <Alert severity="success" icon={<TipsAndUpdatesIcon fontSize="inherit" />}>
             Generated with <strong>{meta.provider}</strong> / <strong>{meta.model}</strong>
             {meta.rationale ? ` — ${meta.rationale}` : ''}
+            {typeof meta.generation_ms === 'number' ? ` (Latency: ${meta.generation_ms}ms)` : ''}
           </Alert>
+          {meta.fallback_used ? (
+            <Alert severity="warning">
+              Fallback to mock generation was used for this result.
+            </Alert>
+          ) : null}
           {meta.warnings.map((warning, index) => (
             <Alert key={`${warning}-${index}`} severity="warning">
               {warning}
