@@ -87,3 +87,9 @@ export interface RunnerJob {
   result: Record<string, unknown> | null
   error: string | null
 }
+
+export interface HostIntegrationResult {
+  mode: 'host'
+  captureone_app_path: string
+  imported_costyle_path: string
+}
