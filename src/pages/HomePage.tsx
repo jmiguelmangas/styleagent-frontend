@@ -29,8 +29,8 @@ import {
 import type {
   ApiError,
   Artifact,
+  CompileResponse,
   HostErrorCode,
-  RunnerJobResult,
   RunnerExecutionMode,
   SafePolicy,
   Style,
@@ -100,7 +100,7 @@ export function HomePage() {
 
   const [createdStyle, setCreatedStyle] = useState<Style | null>(null)
   const [createdVersion, setCreatedVersion] = useState<StyleVersion | null>(null)
-  const [compileResult, setCompileResult] = useState<RunnerJobResult | null>(null)
+  const [compileResult, setCompileResult] = useState<CompileResponse | null>(null)
   const [runnerJobId, setRunnerJobId] = useState<string | null>(null)
   const [runnerJobStatus, setRunnerJobStatus] = useState<string | null>(null)
   const [hostImportedPath, setHostImportedPath] = useState<string | null>(null)
@@ -448,7 +448,12 @@ export function HomePage() {
       setFlowError({ message: 'Compile an artifact first.', status: 400 })
       return
     }
-    await triggerDownload(compileResult.artifact_id, downloadFilename)
+    const artifactId = compileResult.artifact_id
+    if (!artifactId) {
+      setFlowError({ message: 'Compiled artifact id is missing.', status: 500 })
+      return
+    }
+    await triggerDownload(artifactId, downloadFilename)
   }
 
   return (
