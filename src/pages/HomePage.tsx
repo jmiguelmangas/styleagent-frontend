@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import DataObjectIcon from '@mui/icons-material/DataObject'
 import DnsIcon from '@mui/icons-material/Dns'
@@ -28,6 +28,7 @@ import type {
   ApiError,
   Artifact,
   CompileResponse,
+  HostIntegrationResult,
   RunnerExecutionMode,
   SafePolicy,
   Style,
@@ -81,10 +82,13 @@ export function HomePage() {
   const [compileResult, setCompileResult] = useState<CompileResponse | null>(null)
   const [runnerJobId, setRunnerJobId] = useState<string | null>(null)
   const [runnerJobStatus, setRunnerJobStatus] = useState<string | null>(null)
+  const [hostImportedPath, setHostImportedPath] = useState<string | null>(null)
+  const [isAutoPollingJob, setIsAutoPollingJob] = useState(false)
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null)
+  const jobPollingRef = useRef(false)
 
   const downloadFilename = useMemo(() => {
     if (!createdStyle || !createdVersion) {
@@ -170,6 +174,7 @@ export function HomePage() {
     setCompileResult(null)
     setRunnerJobId(null)
     setRunnerJobStatus(null)
+    setHostImportedPath(null)
     setArtifacts([])
 
     try {
@@ -201,6 +206,7 @@ export function HomePage() {
     setCompileResult(null)
     setRunnerJobId(null)
     setRunnerJobStatus(null)
+    setHostImportedPath(null)
 
     try {
       const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
@@ -244,6 +250,7 @@ export function HomePage() {
         })
         setRunnerJobId(createdJob.job_id)
         setRunnerJobStatus(createdJob.status)
+        setHostImportedPath(null)
         setCompileResult(null)
         return
       }
@@ -252,6 +259,7 @@ export function HomePage() {
       setCompileResult(compiled)
       setRunnerJobId(null)
       setRunnerJobStatus(null)
+      setHostImportedPath(null)
       await refreshArtifactHistory(createdStyle.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
@@ -282,6 +290,10 @@ export function HomePage() {
             sha256: result.sha256,
             download_url: result.download_url,
           })
+          const host = (job.result as { host_integration?: HostIntegrationResult }).host_integration
+          if (host?.mode === 'host') {
+            setHostImportedPath(host.imported_costyle_path)
+          }
           await refreshArtifactHistory(createdStyle.style_id)
         }
       }
@@ -294,6 +306,73 @@ export function HomePage() {
       setActiveAction(null)
     }
   }
+
+  useEffect(() => {
+    if (!runnerJobId || !createdStyle) {
+      setIsAutoPollingJob(false)
+      return
+    }
+    if (runnerJobStatus === 'succeeded' || runnerJobStatus === 'failed') {
+      setIsAutoPollingJob(false)
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setInterval(async () => {
+      if (jobPollingRef.current) {
+        return
+      }
+      jobPollingRef.current = true
+      try {
+        setIsAutoPollingJob(true)
+        const job = await getRunnerJob(runnerJobId)
+        if (cancelled) {
+          return
+        }
+        setRunnerJobStatus(job.status)
+        if (job.status === 'succeeded' && job.result) {
+          const result = job.result as Partial<CompileResponse>
+          if (
+            typeof result.artifact_id === 'string' &&
+            typeof result.sha256 === 'string' &&
+            typeof result.download_url === 'string'
+          ) {
+            setCompileResult({
+              artifact_id: result.artifact_id,
+              sha256: result.sha256,
+              download_url: result.download_url,
+            })
+            const host = (job.result as { host_integration?: HostIntegrationResult }).host_integration
+            if (host?.mode === 'host') {
+              setHostImportedPath(host.imported_costyle_path)
+            }
+            await refreshArtifactHistory(createdStyle.style_id)
+          }
+          window.clearInterval(timer)
+          setIsAutoPollingJob(false)
+        } else if (job.status === 'failed') {
+          if (job.error) {
+            setFlowError({ message: job.error, status: 500 })
+          }
+          window.clearInterval(timer)
+          setIsAutoPollingJob(false)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setFlowError(toApiError(err))
+        }
+      } finally {
+        jobPollingRef.current = false
+      }
+    }, 2500)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+      jobPollingRef.current = false
+      setIsAutoPollingJob(false)
+    }
+  }, [createdStyle, runnerJobId, runnerJobStatus])
 
   async function triggerDownload(artifactId: string, filename: string) {
     setActiveAction('download')
@@ -455,7 +534,7 @@ export function HomePage() {
                 : '3. Compile'}
           </button>
           <button type="button" onClick={handleRefreshRunnerJob} disabled={activeAction !== null || !runnerJobId}>
-            {isLoading('job') ? 'Checking job...' : 'Check Runner Job'}
+            {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Auto-tracking active' : 'Check Runner Job'}
           </button>
           <button type="button" onClick={handleDownloadArtifact} disabled={activeAction !== null || !compileResult}>
             {isLoading('download') ? 'Downloading...' : '4. Download Latest'}
@@ -491,6 +570,9 @@ export function HomePage() {
           </p>
           <p>
             <strong>Runner Status:</strong> {runnerJobStatus ?? '-'}
+          </p>
+          <p>
+            <strong>Host Imported Path:</strong> {hostImportedPath ?? '-'}
           </p>
           <p>
             <strong>SHA256:</strong> {compileResult?.sha256 ?? '-'}
