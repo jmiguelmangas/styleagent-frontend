@@ -366,8 +366,11 @@ describe('App integration', () => {
 
     render(<App />)
 
+    const user = userEvent.setup()
     expect(await screen.findByText('AI generation history')).toBeInTheDocument()
     expect(await screen.findByText('AI Cinematic Warm')).toBeInTheDocument()
     expect(await screen.findByText('Prompt: cinematic warm portrait')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Use this preset' }))
+    expect(await screen.findByDisplayValue('AI Cinematic Warm')).toBeInTheDocument()
   })
 })
