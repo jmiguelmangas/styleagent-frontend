@@ -1,4 +1,5 @@
 import type {
+  AIGenerationRecord,
   Artifact,
   CompileResponse,
   GenerateStyleSpecResponse,
@@ -118,6 +119,54 @@ function isGenerateStyleSpecResponse(value: unknown): value is GenerateStyleSpec
   }
 
   return typeof value.provider === 'string' && typeof value.model === 'string'
+}
+
+function isAIGenerationRecord(value: unknown): value is AIGenerationRecord {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  if (
+    typeof value.generation_id !== 'string' ||
+    typeof value.created_at !== 'string' ||
+    typeof value.client_key !== 'string' ||
+    typeof value.prompt !== 'string' ||
+    value.target !== 'captureone' ||
+    !isStyleSpec(value.style_spec) ||
+    !Array.isArray(value.warnings) ||
+    !value.warnings.every((entry) => typeof entry === 'string') ||
+    typeof value.provider !== 'string' ||
+    typeof value.model !== 'string'
+  ) {
+    return false
+  }
+
+  if (value.intent !== undefined && value.intent !== null) {
+    if (!Array.isArray(value.intent) || !value.intent.every((entry) => typeof entry === 'string')) {
+      return false
+    }
+  }
+
+  if (value.constraints !== undefined && value.constraints !== null && !isRecord(value.constraints)) {
+    return false
+  }
+
+  if (value.rationale !== undefined && value.rationale !== null && typeof value.rationale !== 'string') {
+    return false
+  }
+
+  if (
+    value.generation_ms !== undefined &&
+    value.generation_ms !== null &&
+    typeof value.generation_ms !== 'number'
+  ) {
+    return false
+  }
+  if (value.fallback_used !== undefined && typeof value.fallback_used !== 'boolean') {
+    return false
+  }
+
+  return true
 }
 
 function isArtifact(value: unknown): value is Artifact {
@@ -256,6 +305,13 @@ export function parseCompileResponse(value: unknown): CompileResponse {
 export function parseGenerateStyleSpecResponse(value: unknown): GenerateStyleSpecResponse {
   if (!isGenerateStyleSpecResponse(value)) {
     throw new Error('Invalid AI generate response payload')
+  }
+  return value
+}
+
+export function parseAIGenerationHistory(value: unknown): AIGenerationRecord[] {
+  if (!Array.isArray(value) || !value.every(isAIGenerationRecord)) {
+    throw new Error('Invalid AI generation history payload')
   }
   return value
 }

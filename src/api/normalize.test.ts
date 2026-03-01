@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseGenerateStyleSpecResponse, parseRunnerJob } from './normalize'
+import { parseAIGenerationHistory, parseGenerateStyleSpecResponse, parseRunnerJob } from './normalize'
 
 describe('parseRunnerJob', () => {
   it('accepts host integration payload with launch_method', () => {
@@ -139,5 +139,44 @@ describe('parseGenerateStyleSpecResponse', () => {
         generation_ms: 'fast',
       }),
     ).toThrow('Invalid AI generate response payload')
+  })
+})
+
+describe('parseAIGenerationHistory', () => {
+  it('accepts valid ai history payload', () => {
+    const parsed = parseAIGenerationHistory([
+      {
+        generation_id: 'gen_1',
+        created_at: '2026-03-01T10:00:00Z',
+        client_key: '127.0.0.1',
+        prompt: 'warm portrait',
+        target: 'captureone',
+        style_spec: {
+          name: 'AI Warm',
+          intent: ['warm'],
+          captureone: {
+            keys: { Exposure: 0.1 },
+          },
+        },
+        warnings: [],
+        provider: 'mock',
+        model: 'mock-v1',
+      },
+    ])
+
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0]?.generation_id).toBe('gen_1')
+  })
+
+  it('rejects invalid ai history payload', () => {
+    expect(() =>
+      parseAIGenerationHistory([
+        {
+          generation_id: 'gen_1',
+          created_at: '2026-03-01T10:00:00Z',
+          target: 'captureone',
+        },
+      ]),
+    ).toThrow('Invalid AI generation history payload')
   })
 })

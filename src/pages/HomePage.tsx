@@ -24,10 +24,12 @@ import {
   downloadArtifact,
   generateStyleSpec,
   getRunnerJob,
+  listAIGenerations,
   listStyleArtifacts,
   toApiError,
 } from '../api/client'
 import type {
+  AIGenerationRecord,
   ApiError,
   Artifact,
   CompileResponse,
@@ -42,6 +44,7 @@ import type {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { AIGeneratorPanel } from '../components/AIGeneratorPanel'
+import { AIGenerationHistory } from '../components/AIGenerationHistory'
 import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { JsonEditor } from '../components/JsonEditor'
@@ -131,6 +134,8 @@ export function HomePage() {
   const [showHostErrorDetails, setShowHostErrorDetails] = useState(false)
   const [isAutoPollingJob, setIsAutoPollingJob] = useState(false)
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
+  const [aiHistory, setAiHistory] = useState<AIGenerationRecord[]>([])
+  const [aiHistoryLoading, setAiHistoryLoading] = useState(false)
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null)
@@ -221,6 +226,7 @@ export function HomePage() {
         generation_ms: generated.generation_ms ?? null,
         fallback_used: generated.fallback_used ?? false,
       })
+      await refreshAIGenerationHistory()
     } catch (err) {
       const apiError = toApiError(err)
       if (apiError.status === 429) {
@@ -276,6 +282,7 @@ export function HomePage() {
         generation_ms: generated.generation_ms ?? null,
         fallback_used: generated.fallback_used ?? false,
       })
+      await refreshAIGenerationHistory()
 
       const normalizedStyleName = generated.style_spec.name.trim()
       const style = await createStyle({ name: normalizedStyleName })
@@ -346,6 +353,18 @@ export function HomePage() {
     }
   }
 
+  async function refreshAIGenerationHistory() {
+    setAiHistoryLoading(true)
+    try {
+      const list = await listAIGenerations(20)
+      setAiHistory(list)
+    } catch {
+      // Keep the main flow usable even if history endpoint is unavailable.
+    } finally {
+      setAiHistoryLoading(false)
+    }
+  }
+
   async function refreshArtifactHistory(styleId: string) {
     setActiveAction('history')
 
@@ -358,6 +377,10 @@ export function HomePage() {
       setActiveAction(null)
     }
   }
+
+  useEffect(() => {
+    void refreshAIGenerationHistory()
+  }, [])
 
   async function handleCreateStyle() {
     const normalizedStyleName = styleName.trim()
@@ -901,6 +924,14 @@ export function HomePage() {
         loading={isLoading('history')}
         onDownload={(artifactId, filename) => {
           void triggerDownload(artifactId, filename)
+        }}
+      />
+
+      <AIGenerationHistory
+        records={aiHistory}
+        loading={aiHistoryLoading}
+        onRefresh={() => {
+          void refreshAIGenerationHistory()
         }}
       />
     </main>

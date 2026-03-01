@@ -1,4 +1,5 @@
 import {
+  parseAIGenerationHistory,
   parseArtifacts,
   parseCompileResponse,
   parseGenerateStyleSpecResponse,
@@ -8,6 +9,7 @@ import {
   parseStyleVersion,
 } from './normalize'
 import type {
+  AIGenerationRecord,
   ApiError,
   Artifact,
   CompileResponse,
@@ -198,6 +200,10 @@ export async function generateStyleSpec(
       body: JSON.stringify(payload),
     }),
   )
+}
+
+export async function listAIGenerations(limit = 20): Promise<AIGenerationRecord[]> {
+  return parseAIGenerationHistory(await request(`/ai/generations?limit=${limit}`))
 }
 
 export async function listStyleArtifacts(styleId: string): Promise<Artifact[]> {
