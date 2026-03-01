@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import DataObjectIcon from '@mui/icons-material/DataObject'
 import DnsIcon from '@mui/icons-material/Dns'
 import LaptopMacIcon from '@mui/icons-material/LaptopMac'
+import ChatIcon from '@mui/icons-material/Chat'
 import TuneIcon from '@mui/icons-material/Tune'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import {
@@ -66,6 +67,13 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
       Contrast: 9,
       Saturation: 6,
       Clarity: 8,
+      WhiteBalanceTemperature: 5600,
+      WhiteBalanceTint: 2,
+      Highlights: -8,
+      Shadows: 10,
+      ColorBalanceRed: 3,
+      ColorBalanceGreen: 0,
+      ColorBalanceBlue: -2,
       ToneCurve: 'Film Standard',
     },
     notes: 'Balanced skin tones with gentle contrast.',
@@ -82,6 +90,7 @@ type ActionKey =
   | 'ai_save'
   | 'ai_chat'
   | 'ai_chat_apply'
+  | 'ai_chat_save'
   | 'style'
   | 'version'
   | 'compile'
@@ -90,6 +99,7 @@ type ActionKey =
   | 'history'
   | 'job'
 type EditorMode = 'guided' | 'advanced'
+type AIMode = 'generator' | 'chat'
 
 function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: string): string {
   switch (errorCode) {
@@ -123,6 +133,7 @@ export function HomePage() {
       'provider' | 'model' | 'rationale' | 'warnings' | 'generation_ms' | 'fallback_used'
     > | null
   >(null)
+  const [aiMode, setAiMode] = useState<AIMode>('generator')
   const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
   const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
   const [jsonError, setJsonError] = useState(false)
@@ -787,6 +798,31 @@ export function HomePage() {
     }
   }
 
+  async function handleSavePresetFromChat() {
+    setActiveAction('ai_chat_save')
+    setFlowError(null)
+    try {
+      let nextStyle = createdStyle
+      if (!nextStyle) {
+        nextStyle = await createStyle({
+          name: styleName.trim() || styleSpec.name,
+        })
+        setCreatedStyle(nextStyle)
+      }
+      const created = await createStyleVersion(nextStyle.style_id, {
+        version,
+        style_spec: styleSpec,
+        safe_policy: styleSpec.safe,
+      })
+      setCreatedVersion(created)
+      await refreshArtifactHistory(nextStyle.style_id)
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
   return (
     <main className="page">
       <header>
@@ -804,22 +840,74 @@ export function HomePage() {
       <section className="flow-card">
         <h2>Core Flow</h2>
 
-      <AIGeneratorPanel
-          prompt={aiPrompt}
-          intents={aiIntents}
-          onPromptChange={setAiPrompt}
-          onIntentsChange={setAiIntents}
-          onGenerate={() => {
-            void handleGenerateStyleSpec()
-          }}
-          onGenerateAndSave={() => {
-            void handleGenerateAndSaveStyleSpec()
-          }}
-          generating={isLoading('ai')}
-          generatingAndSaving={isLoading('ai_save')}
-          cooldownSeconds={aiCooldownSeconds}
-          meta={aiMeta}
-        />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 1, mb: 1 }}>
+          <ToggleButtonGroup
+            color="primary"
+            value={aiMode}
+            exclusive
+            onChange={(_, next: AIMode | null) => {
+              if (next) {
+                setAiMode(next)
+              }
+            }}
+            aria-label="ai-mode"
+            size="small"
+          >
+            <ToggleButton value="generator" aria-label="ai-mode-generator">
+              <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
+              AI Generator
+            </ToggleButton>
+            <ToggleButton value="chat" aria-label="ai-mode-chat">
+              <ChatIcon fontSize="small" sx={{ mr: 0.75 }} />
+              AI Conversation
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+
+        {aiMode === 'generator' ? (
+          <AIGeneratorPanel
+            prompt={aiPrompt}
+            intents={aiIntents}
+            onPromptChange={setAiPrompt}
+            onIntentsChange={setAiIntents}
+            onGenerate={() => {
+              void handleGenerateStyleSpec()
+            }}
+            onGenerateAndSave={() => {
+              void handleGenerateAndSaveStyleSpec()
+            }}
+            generating={isLoading('ai')}
+            generatingAndSaving={isLoading('ai_save')}
+            cooldownSeconds={aiCooldownSeconds}
+            meta={aiMeta}
+          />
+        ) : (
+          <AIChatPanel
+            sessionId={aiChatSessionId}
+            turns={aiChatTurns}
+            message={aiChatMessage}
+            autoApply={aiChatAutoApply}
+            loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
+            applyingTurnId={aiChatApplyingTurnId}
+            savingPreset={isLoading('ai_chat_save')}
+            onMessageChange={setAiChatMessage}
+            onAutoApplyChange={setAiChatAutoApply}
+            onSuggestionSelect={setAiChatMessage}
+            onSavePreset={() => {
+              void handleSavePresetFromChat()
+            }}
+            onSend={() => {
+              void handleSendAIChatTurn()
+            }}
+            onApplyTurn={(turnId) => {
+              void handleApplyAIChatTurn(turnId)
+            }}
+            onRevertTurn={(turnId) => {
+              handleRevertAIChatTurnLocal(turnId)
+            }}
+            onResetSession={resetAIChatSession}
+          />
+        )}
 
         <label htmlFor="style-name">Style name</label>
         <input
@@ -1018,27 +1106,6 @@ export function HomePage() {
         onDownload={(artifactId, filename) => {
           void triggerDownload(artifactId, filename)
         }}
-      />
-
-      <AIChatPanel
-        sessionId={aiChatSessionId}
-        turns={aiChatTurns}
-        message={aiChatMessage}
-        autoApply={aiChatAutoApply}
-        loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
-        applyingTurnId={aiChatApplyingTurnId}
-        onMessageChange={setAiChatMessage}
-        onAutoApplyChange={setAiChatAutoApply}
-        onSend={() => {
-          void handleSendAIChatTurn()
-        }}
-        onApplyTurn={(turnId) => {
-          void handleApplyAIChatTurn(turnId)
-        }}
-        onRevertTurn={(turnId) => {
-          handleRevertAIChatTurnLocal(turnId)
-        }}
-        onResetSession={resetAIChatSession}
       />
 
       <AIGenerationHistory

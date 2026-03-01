@@ -2,7 +2,8 @@ import ChatIcon from '@mui/icons-material/Chat'
 import SendIcon from '@mui/icons-material/Send'
 import UndoIcon from '@mui/icons-material/Undo'
 import DoneIcon from '@mui/icons-material/Done'
-import { Alert, Button, Chip, Stack, Switch, TextField, Typography } from '@mui/material'
+import SaveIcon from '@mui/icons-material/Save'
+import { Alert, Button, Chip, Paper, Stack, Switch, TextField, Typography } from '@mui/material'
 
 import type { AIChatTurn } from '../api/types'
 
@@ -13,8 +14,11 @@ type AIChatPanelProps = {
   autoApply: boolean
   loading: boolean
   applyingTurnId: string | null
+  savingPreset: boolean
   onMessageChange: (value: string) => void
   onAutoApplyChange: (value: boolean) => void
+  onSuggestionSelect: (value: string) => void
+  onSavePreset: () => void
   onSend: () => void
   onApplyTurn: (turnId: string) => void
   onRevertTurn: (turnId: string) => void
@@ -28,8 +32,11 @@ export function AIChatPanel({
   autoApply,
   loading,
   applyingTurnId,
+  savingPreset,
   onMessageChange,
   onAutoApplyChange,
+  onSuggestionSelect,
+  onSavePreset,
   onSend,
   onApplyTurn,
   onRevertTurn,
@@ -42,13 +49,25 @@ export function AIChatPanel({
           <ChatIcon fontSize="small" />
           AI conversation
         </Typography>
-        <Button type="button" size="small" variant="outlined" onClick={onResetSession} disabled={loading}>
-          New session
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            type="button"
+            size="small"
+            variant="outlined"
+            startIcon={<SaveIcon />}
+            onClick={onSavePreset}
+            disabled={loading || savingPreset}
+          >
+            {savingPreset ? 'Saving preset...' : 'Save preset'}
+          </Button>
+          <Button type="button" size="small" variant="outlined" onClick={onResetSession} disabled={loading}>
+            New session
+          </Button>
+        </Stack>
       </Stack>
 
       <p style={{ marginTop: 0 }}>
-        Session: <strong>{sessionId ?? 'not started'}</strong>
+        Session: <strong>{sessionId ?? 'not started'}</strong> · Turns: <strong>{turns.length}</strong>
       </p>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1 }}>
@@ -82,15 +101,19 @@ export function AIChatPanel({
 
       {turns.length === 0 && <p>No turns yet. Start by sending a message.</p>}
       {turns.length > 0 && (
-        <ul className="history-list">
+        <ul className="history-list" aria-label="chat-turn-list">
           {turns.map((turn) => (
             <li key={turn.turn_id}>
-              <p>
-                <strong>You:</strong> {turn.user_message}
-              </p>
-              <p>
-                <strong>Assistant:</strong> {turn.assistant_message}
-              </p>
+              <Paper variant="outlined" sx={{ p: 1.25, mb: 1, backgroundColor: '#f5f7fb' }}>
+                <Typography variant="body2">
+                  <strong>You:</strong> {turn.user_message}
+                </Typography>
+              </Paper>
+              <Paper variant="outlined" sx={{ p: 1.25, mb: 1 }}>
+                <Typography variant="body2">
+                  <strong>Assistant:</strong> {turn.assistant_message}
+                </Typography>
+              </Paper>
 
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
                 {turn.guidance.detected_goals.map((goal) => (
@@ -117,6 +140,21 @@ export function AIChatPanel({
                 <Alert severity="warning" sx={{ mb: 1 }}>
                   {turn.warnings[0]}
                 </Alert>
+              )}
+
+              {turn.guidance.suggested_next_messages.length > 0 && (
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+                  {turn.guidance.suggested_next_messages.map((suggestion) => (
+                    <Chip
+                      key={`${turn.turn_id}:${suggestion}`}
+                      label={suggestion}
+                      size="small"
+                      onClick={() => onSuggestionSelect(suggestion)}
+                      clickable
+                      variant="outlined"
+                    />
+                  ))}
+                </Stack>
               )}
 
               <Stack direction="row" spacing={1}>

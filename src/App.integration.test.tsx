@@ -476,6 +476,7 @@ describe('App integration', () => {
 
     render(<App />)
     const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'ai-mode-chat' }))
     await user.type(screen.getByRole('textbox', { name: 'Message to AI' }), 'add contrast')
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
