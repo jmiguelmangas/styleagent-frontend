@@ -41,7 +41,6 @@ describe('App integration', () => {
 
     expect(await screen.findByText('Backend ok')).toBeInTheDocument()
     expect(await screen.findByText('AI ready')).toBeInTheDocument()
-    expect(await screen.findByText('ollama / llama3.1:8b')).toBeInTheDocument()
   })
 
   it('renders network error message when backend is unreachable', async () => {

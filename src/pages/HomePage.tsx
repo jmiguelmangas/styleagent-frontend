@@ -32,6 +32,7 @@ import {
   Stepper,
   Switch,
   TextField,
+  Tooltip,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -978,39 +979,44 @@ export function HomePage() {
                   color={error ? 'error' : 'success'}
                   variant="filled"
                 />
-                <Chip
-                  label={
-                    aiHealthLoading
-                      ? 'Checking AI'
-                      : aiHealthError
-                        ? 'AI unavailable'
-                        : aiHealth?.status === 'available'
-                          ? 'AI ready'
-                          : aiHealth?.status === 'degraded'
-                            ? 'AI degraded'
-                            : 'AI unavailable'
-                  }
-                  color={
-                    aiHealthLoading
-                      ? 'default'
-                      : aiHealthError || aiHealth?.status === 'unavailable'
-                        ? 'error'
-                        : aiHealth?.status === 'degraded'
-                          ? 'warning'
-                          : 'success'
-                  }
-                  variant="filled"
-                />
-                <Chip
-                  label={
+                <Tooltip
+                  arrow
+                  placement="top"
+                  title={
                     aiHealth
-                      ? `${aiHealth.provider} / ${aiHealth.model}`
+                      ? `${aiHealth.provider} / ${aiHealth.model}${
+                          aiHealth.message ? `\n${aiHealth.message}` : ''
+                        }`
                       : aiMeta
                         ? `${aiMeta.provider} / ${aiMeta.model}`
-                        : 'AI model unknown'
+                        : 'AI model information unavailable.'
                   }
-                  sx={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff' }}
-                />
+                >
+                  <Chip
+                    label={
+                      aiHealthLoading
+                        ? 'Checking AI'
+                        : aiHealthError
+                          ? 'AI unavailable'
+                          : aiHealth?.status === 'available'
+                            ? 'AI ready'
+                            : aiHealth?.status === 'degraded'
+                              ? 'AI degraded'
+                              : 'AI unavailable'
+                    }
+                    color={
+                      aiHealthLoading
+                        ? 'default'
+                        : aiHealthError || aiHealth?.status === 'unavailable'
+                          ? 'error'
+                          : aiHealth?.status === 'degraded'
+                            ? 'warning'
+                            : 'success'
+                    }
+                    variant="filled"
+                    sx={{ cursor: 'help' }}
+                  />
+                </Tooltip>
               </Stack>
             </Stack>
 

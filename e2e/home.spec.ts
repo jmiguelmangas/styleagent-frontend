@@ -295,9 +295,11 @@ test('renders a dark wizard shell with a single backend status indicator', async
   await expect(page.getByText('Create a look step by step')).toBeVisible()
   await expect(page.getByText('Backend ok')).toHaveCount(1)
   await expect(page.getByText('AI ready')).toHaveCount(1)
-  await expect(page.getByText('ollama / llama3.1:8b')).toHaveCount(1)
   await expect(page.getByText('Choose how you want to start')).toBeVisible()
   await expect(page.getByText('Create your first look')).toHaveCount(0)
+
+  await page.getByText('AI ready').hover()
+  await expect(page.getByText('ollama / llama3.1:8b')).toBeVisible()
 
   const pageBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
   expect(pageBackground).not.toBe('rgb(255, 255, 255)')
