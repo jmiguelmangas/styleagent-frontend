@@ -95,32 +95,37 @@ export function AIGeneratorPanel({
         Describe the look you want. Generated `StyleSpec` is loaded into the editor below and can be adjusted.
       </Typography>
 
-      <TextField
-        fullWidth
-        multiline
-        minRows={3}
-        label="Prompt"
-        placeholder="Example: cinematic warm portrait preset with soft highlights and subtle contrast"
-        value={prompt}
-        onChange={(event) => onPromptChange(event.target.value)}
-        variant="outlined"
-        InputLabelProps={{ shrink: true }}
-        sx={{
-          '& .MuiInputLabel-root': {
-            color: 'rgba(226, 232, 240, 0.78)',
-          },
-          '& .MuiOutlinedInput-root': {
-            alignItems: 'flex-start',
-            backgroundColor: 'rgba(12, 18, 28, 0.6)',
-          },
-          '& .MuiOutlinedInput-input': {
-            pt: 1.75,
-          },
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(255,255,255,0.12)',
-          },
-        }}
-      />
+      <Box>
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', mb: 0.75, color: 'rgba(226, 232, 240, 0.78)', fontWeight: 600 }}
+        >
+          Prompt
+        </Typography>
+        <TextField
+          fullWidth
+          multiline
+          minRows={3}
+          hiddenLabel
+          inputProps={{ 'aria-label': 'Prompt' }}
+          placeholder="Example: cinematic warm portrait preset with soft highlights and subtle contrast"
+          value={prompt}
+          onChange={(event) => onPromptChange(event.target.value)}
+          variant="outlined"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              alignItems: 'flex-start',
+              backgroundColor: 'rgba(12, 18, 28, 0.6)',
+            },
+            '& .MuiOutlinedInput-input': {
+              pt: 1.75,
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(255,255,255,0.12)',
+            },
+          }}
+        />
+      </Box>
 
       <Box sx={{ mt: 1.5 }}>
         <Typography
