@@ -294,11 +294,31 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
             </Box>
           </Stack>,
         )}
+      </Box>
 
-        {sectionCard(
-          'Output Safety',
-          'Protect export behavior and optional removals.',
-          <Stack spacing={1}>
+      <Accordion
+        disableGutters
+        defaultExpanded={false}
+        sx={{
+          mt: 1.5,
+          borderRadius: 2.5,
+          backgroundColor: 'rgba(12, 18, 28, 0.4)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          '&:before': { display: 'none' },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Stack spacing={0.2}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              Output Safety
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Export protections and notes live here when you need them.
+            </Typography>
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Stack spacing={1.5}>
             <FormGroup sx={{ gap: 1 }}>
               <FormControlLabel
                 sx={checkboxLabelSx}
@@ -348,9 +368,9 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
                 })
               }
             />
-          </Stack>,
-        )}
-      </Box>
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
 
       {showAllProperties && (
         <>
