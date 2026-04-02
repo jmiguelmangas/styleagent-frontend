@@ -1,0 +1,50 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="StyleAgent mark">
+  <defs>
+    <linearGradient id="bgRing" x1="20" y1="20" x2="140" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6E7685"/>
+      <stop offset="50%" stop-color="#2B313C"/>
+      <stop offset="100%" stop-color="#0F1218"/>
+    </linearGradient>
+    <linearGradient id="innerGlass" x1="42" y1="38" x2="118" y2="122" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2E3642"/>
+      <stop offset="55%" stop-color="#11161E"/>
+      <stop offset="100%" stop-color="#080B11"/>
+    </linearGradient>
+    <linearGradient id="blueArc" x1="38" y1="72" x2="79" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#36597A"/>
+      <stop offset="100%" stop-color="#8CB9E8"/>
+    </linearGradient>
+    <linearGradient id="amberArc" x1="77" y1="47" x2="122" y2="65" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F0C777"/>
+      <stop offset="100%" stop-color="#9A5C2F"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(80 80) rotate(90) scale(48)">
+      <stop offset="0%" stop-color="#1D2430"/>
+      <stop offset="100%" stop-color="#090C12"/>
+    </radialGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="iconClip">
+      <circle cx="80" cy="80" r="60"/>
+    </clipPath>
+  </defs>
+  <circle cx="80" cy="80" r="64" fill="#05070B"/>
+  <circle cx="80" cy="80" r="60" stroke="url(#bgRing)" stroke-width="8"/>
+  <circle cx="80" cy="80" r="46" fill="url(#innerGlass)"/>
+  <circle cx="80" cy="80" r="46" fill="url(#centerGlow)" opacity="0.95"/>
+  <g clip-path="url(#iconClip)" opacity="0.28">
+    <path d="M80 34 L108 56 L80 80 Z" fill="#3B4350"/>
+    <path d="M108 56 L102 100 L80 80 Z" fill="#1A202A"/>
+    <path d="M102 100 L58 106 L80 80 Z" fill="#0D1118"/>
+    <path d="M58 106 L50 60 L80 80 Z" fill="#202734"/>
+    <path d="M50 60 L80 34 L80 80 Z" fill="#323A46"/>
+  </g>
+  <path d="M38 84C46 61 62 48 84 48C99 48 113 54 124 64" stroke="url(#blueArc)" stroke-width="11" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M82 48C100 49 114 55 124 64" stroke="url(#amberArc)" stroke-width="11" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M53 49C60 42 71 37 84 37" stroke="#DDE4EE" stroke-opacity="0.35" stroke-width="3" stroke-linecap="round"/>
+</svg>

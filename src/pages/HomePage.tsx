@@ -75,6 +75,7 @@ import { AIGeneratorPanel } from '../components/AIGeneratorPanel'
 import { AIChatPanel } from '../components/AIChatPanel'
 import { AIGenerationHistory } from '../components/AIGenerationHistory'
 import { ArtifactHistory } from '../components/ArtifactHistory'
+import { BrandLogo } from '../components/BrandLogo'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { JsonEditor } from '../components/JsonEditor'
 import { StyleSpecControls } from '../components/StyleSpecControls'
@@ -964,9 +965,9 @@ export function HomePage() {
               justifyContent="space-between"
             >
               <Box>
-                <Typography variant="overline" sx={{ letterSpacing: 1.6, opacity: 0.8 }}>
-                  StyleAgent
-                </Typography>
+                <Box sx={{ mb: 1.1, maxWidth: { xs: 220, md: 320 } }}>
+                  <BrandLogo width="100%" height="auto" />
+                </Box>
                 <Typography variant="h3" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
                   Create a look step by step
                 </Typography>
