@@ -216,6 +216,7 @@ export function HomePage() {
   const hasGeneratedLook = aiMeta !== null || hasConversationTurns
   const hasSavedPreset = createdVersion !== null
   const hasPreparedExport = compileResult !== null || runnerJobId !== null
+  const flowCardMinHeight = wizardStep === 0 ? 280 : 560
   const computedJourneyStepIndex = hasPreparedExport
     ? 3
     : hasSavedPreset
@@ -1030,7 +1031,7 @@ export function HomePage() {
           </Stack>
         </Box>
 
-        <section className="flow-card" style={{ minHeight: 560 }}>
+        <section className="flow-card" style={{ minHeight: flowCardMinHeight }}>
           {wizardStep === 0 ? (
             <Stack spacing={2}>
               <Box>
