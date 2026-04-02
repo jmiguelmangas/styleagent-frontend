@@ -53,7 +53,7 @@ cp .env.production.example .env.production
 Variables:
 
 - `VITE_API_BASE_URL` (default: `http://localhost:8000`)
-- `VITE_API_TIMEOUT_MS` (default: `10000`)
+- `VITE_API_TIMEOUT_MS` (default: `30000`)
 - `VITE_APP_BASE_PATH` (default: `/`)
 
 ## Run (Local Dev)
@@ -142,7 +142,7 @@ Build image from `frontend/`:
 ```bash
 docker build -t styleagent-frontend:dev \
   --build-arg VITE_API_BASE_URL=http://localhost:8000 \
-  --build-arg VITE_API_TIMEOUT_MS=10000 \
+  --build-arg VITE_API_TIMEOUT_MS=30000 \
   --build-arg VITE_APP_BASE_PATH=/ \
   .
 ```
