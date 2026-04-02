@@ -1,6 +1,6 @@
 .page {
   margin: 0 auto;
-  max-width: 980px;
+  max-width: 1120px;
   padding: 2rem 1.25rem 3rem;
 }
 
@@ -18,10 +18,12 @@
 .flow-card,
 .history-card {
   margin-top: 1.5rem;
-  border: 1px solid #d5d9e0;
-  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
   padding: 1rem;
-  background: #f9fbfd;
+  background: rgba(18, 23, 34, 0.92);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
 }
 
 .status-card h2,
@@ -32,16 +34,16 @@
 }
 
 .status-loading {
-  color: #3b4a5a;
+  color: #9ea8bd;
 }
 
 .status-error {
-  color: #a11d2e;
+  color: #ff7b8f;
   font-weight: 600;
 }
 
 .status-ok {
-  color: #167a36;
+  color: #52d47d;
   font-weight: 600;
 }
 
@@ -61,7 +63,7 @@
   border-radius: 8px;
   padding: 0.55rem 0.65rem;
   font: inherit;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .flow-card textarea {
@@ -71,9 +73,9 @@
 .style-controls {
   margin-top: 0.9rem;
   padding: 0.85rem;
-  border: 1px solid #c9d3e2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .style-controls h3 {
@@ -107,7 +109,7 @@
   margin: 0 0 0.55rem;
   font-size: 0.88rem;
   font-weight: 600;
-  color: #3b4a5a;
+  color: #9ea8bd;
 }
 
 .checkbox-grid {
@@ -138,9 +140,9 @@
 
 .flow-actions button,
 .history-list button {
-  border: 1px solid #2f4e72;
-  background: #355f8a;
-  color: #fff;
+  border: 1px solid rgba(122, 162, 255, 0.24);
+  background: linear-gradient(180deg, #273750 0%, #1b2638 100%);
+  color: #f2f5fb;
   border-radius: 8px;
   padding: 0.55rem 0.7rem;
   font: inherit;
@@ -155,9 +157,9 @@
 
 .error-banner {
   margin-top: 1rem;
-  border: 1px solid #a11d2e;
-  background: #fff1f3;
-  color: #7e1120;
+  border: 1px solid rgba(255, 123, 143, 0.4);
+  background: rgba(98, 26, 38, 0.28);
+  color: #ffd9e0;
   border-radius: 8px;
   padding: 0.65rem 0.75rem;
 }
@@ -173,7 +175,7 @@
 .flow-output {
   margin-top: 1rem;
   padding-top: 0.75rem;
-  border-top: 1px dashed #b8c2d1;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
 }
 
 .flow-output p {
@@ -190,12 +192,12 @@
 }
 
 .history-list li {
-  border: 1px solid #c9d3e2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 0.65rem;
   display: grid;
   gap: 0.4rem;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .history-list p {

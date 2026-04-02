@@ -4,6 +4,8 @@ import DataObjectIcon from '@mui/icons-material/DataObject'
 import DnsIcon from '@mui/icons-material/Dns'
 import LaptopMacIcon from '@mui/icons-material/LaptopMac'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import ChatIcon from '@mui/icons-material/Chat'
 import HistoryIcon from '@mui/icons-material/History'
 import InsightsIcon from '@mui/icons-material/Insights'
@@ -167,6 +169,7 @@ export function HomePage() {
   const [aiPromptPreview, setAiPromptPreview] = useState<AIPromptPreviewResponse | null>(null)
   const [aiMode, setAiMode] = useState<AIMode>('generator')
   const [journeyStartMode, setJourneyStartMode] = useState<JourneyStartMode>('generator')
+  const [wizardStep, setWizardStep] = useState(0)
   const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
   const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
   const [jsonError, setJsonError] = useState(false)
@@ -211,13 +214,14 @@ export function HomePage() {
   const hasGeneratedLook = aiMeta !== null || hasConversationTurns
   const hasSavedPreset = createdVersion !== null
   const hasPreparedExport = compileResult !== null || runnerJobId !== null
-  const journeyStepIndex = hasPreparedExport
+  const computedJourneyStepIndex = hasPreparedExport
     ? 3
     : hasSavedPreset
       ? 3
       : hasGeneratedLook
         ? 2
         : 1
+  const journeyStepIndex = Math.max(wizardStep, computedJourneyStepIndex)
 
   function isLoading(action: ActionKey): boolean {
     return activeAction === action
@@ -226,6 +230,7 @@ export function HomePage() {
   function selectJourneyStart(mode: JourneyStartMode) {
     setJourneyStartMode(mode)
     setFlowError(null)
+    setWizardStep(1)
     if (mode === 'chat') {
       setAiMode('chat')
       setEditorMode('guided')
@@ -364,6 +369,7 @@ export function HomePage() {
   function handleUsePresetFromHistory(record: AIGenerationRecord) {
     applyGeneratedStyleSpec(record.style_spec)
     setFlowError(null)
+    setWizardStep(2)
   }
 
   async function handleGenerateStyleSpec() {
@@ -485,6 +491,7 @@ export function HomePage() {
       setCreatedVersion(created)
 
       await refreshArtifactHistory(style.style_id)
+      setWizardStep(3)
     } catch (err) {
       const apiError = toApiError(err)
       if (apiError.status === 429) {
@@ -914,6 +921,7 @@ export function HomePage() {
       })
       setCreatedVersion(created)
       await refreshArtifactHistory(nextStyle.style_id)
+      setWizardStep(3)
     } catch (err) {
       const apiError = toApiError(err)
       if (apiError.status === 409) {
@@ -992,88 +1000,97 @@ export function HomePage() {
           </Stack>
         </Box>
 
-        <section className="flow-card">
-          <Stack spacing={1.5}>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                1. Choose how you want to start
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
-                Pick one guided path. You can still switch to advanced controls later.
-              </Typography>
-            </Box>
+        <section className="flow-card" style={{ minHeight: 560 }}>
+          {wizardStep === 0 ? (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  Choose how you want to start
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+                  Pick one path. The app will guide you one step at a time instead of showing every tool at once.
+                </Typography>
+              </Box>
 
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 1.5,
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-              }}
-            >
-              {[
-                {
-                  mode: 'generator' as const,
-                  title: 'Describe the look',
-                  copy: 'Write one prompt and generate a strong first draft fast.',
-                  icon: <AutoFixHighIcon />,
-                },
-                {
-                  mode: 'chat' as const,
-                  title: 'Start a conversation',
-                  copy: 'Refine the look with guided back-and-forth, like a creative assistant.',
-                  icon: <ChatIcon />,
-                },
-                {
-                  mode: 'advanced' as const,
-                  title: 'Open advanced editor',
-                  copy: 'Jump straight into detailed controls and raw style editing.',
-                  icon: <DataObjectIcon />,
-                },
-              ].map((option) => {
-                const selected = journeyStartMode === option.mode
-                return (
-                  <Card
-                    key={option.mode}
-                    sx={{
-                      borderRadius: 3,
-                      border: selected ? '2px solid #1f7aec' : '1px solid #d5d9e0',
-                      backgroundColor: selected ? '#eef6ff' : '#fff',
-                    }}
-                  >
-                    <CardActionArea onClick={() => selectJourneyStart(option.mode)} sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Stack spacing={1.25}>
-                          <Box sx={{ color: selected ? '#1f5fbf' : '#415066' }}>{option.icon}</Box>
-                          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                            {option.title}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#415066' }}>
-                            {option.copy}
-                          </Typography>
-                          {selected ? <Chip size="small" color="primary" label="Recommended path selected" /> : null}
-                        </Stack>
-                      </CardContent>
-                    </CardActionArea>
-                  </Card>
-                )
-              })}
-            </Box>
-          </Stack>
-        </section>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 1.5,
+                  gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+                }}
+              >
+                {[
+                  {
+                    mode: 'generator' as const,
+                    title: 'Describe the look',
+                    copy: 'Start with one prompt and get a first draft fast.',
+                    icon: <AutoFixHighIcon />,
+                  },
+                  {
+                    mode: 'chat' as const,
+                    title: 'Start a conversation',
+                    copy: 'Refine the look with guided back-and-forth.',
+                    icon: <ChatIcon />,
+                  },
+                  {
+                    mode: 'advanced' as const,
+                    title: 'Open advanced editor',
+                    copy: 'Jump directly into raw style editing and precision control.',
+                    icon: <DataObjectIcon />,
+                  },
+                ].map((option) => {
+                  const selected = journeyStartMode === option.mode
+                  return (
+                    <Card
+                      key={option.mode}
+                      sx={{
+                        borderRadius: 3,
+                        border: selected ? '1px solid rgba(99, 162, 255, 0.9)' : '1px solid rgba(255,255,255,0.08)',
+                        backgroundColor: selected ? 'rgba(38, 53, 88, 0.96)' : 'rgba(18, 23, 34, 0.9)',
+                        color: 'text.primary',
+                        boxShadow: selected ? '0 0 0 1px rgba(99, 162, 255, 0.35)' : 'none',
+                      }}
+                    >
+                      <CardActionArea onClick={() => selectJourneyStart(option.mode)} sx={{ height: '100%' }}>
+                        <CardContent>
+                          <Stack spacing={1.25}>
+                            <Box sx={{ color: selected ? '#8bb8ff' : '#a6b0c3' }}>{option.icon}</Box>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                              {option.title}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                              {option.copy}
+                            </Typography>
+                            {selected ? (
+                              <Chip
+                                size="small"
+                                color="primary"
+                                label="Selected"
+                                sx={{ alignSelf: 'flex-start' }}
+                              />
+                            ) : null}
+                          </Stack>
+                        </CardContent>
+                      </CardActionArea>
+                    </Card>
+                  )
+                })}
+              </Box>
+            </Stack>
+          ) : null}
 
-        <section className="flow-card">
-          <Stack spacing={1.5}>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                2. Create your first look
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
-                Focus on the creative direction first. Once the look feels right, you can fine-tune it below.
-              </Typography>
-            </Box>
+          {wizardStep === 1 ? (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  Create your first look
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+                  Start with the creative direction. You can refine tone, color and export settings in the next screens.
+                </Typography>
+              </Box>
 
-            {journeyStartMode !== 'advanced' ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 0.5 }}>
+              {journeyStartMode !== 'advanced' ? (
                 <ToggleButtonGroup
                   color="primary"
                   value={aiMode}
@@ -1095,259 +1112,329 @@ export function HomePage() {
                     AI Conversation
                   </ToggleButton>
                 </ToggleButtonGroup>
+              ) : null}
+
+              {journeyStartMode === 'advanced' || aiMode === 'generator' ? (
+                <AIGeneratorPanel
+                  prompt={aiPrompt}
+                  intents={aiIntents}
+                  onPromptChange={setAiPrompt}
+                  onIntentsChange={setAiIntents}
+                  onPreview={() => {
+                    void handlePreviewAIPrompt()
+                  }}
+                  onGenerate={() => {
+                    void handleGenerateStyleSpec()
+                  }}
+                  onGenerateAndSave={() => {
+                    void handleGenerateAndSaveStyleSpec()
+                  }}
+                  previewing={isLoading('ai_preview')}
+                  generating={isLoading('ai')}
+                  generatingAndSaving={isLoading('ai_save')}
+                  cooldownSeconds={aiCooldownSeconds}
+                  meta={aiMeta}
+                  preview={aiPromptPreview}
+                />
+              ) : (
+                <AIChatPanel
+                  sessionId={aiChatSessionId}
+                  turns={aiChatTurns}
+                  message={aiChatMessage}
+                  autoApply={aiChatAutoApply}
+                  loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
+                  applyingTurnId={aiChatApplyingTurnId}
+                  savingPreset={isLoading('save_preset')}
+                  onMessageChange={setAiChatMessage}
+                  onAutoApplyChange={setAiChatAutoApply}
+                  onSuggestionSelect={setAiChatMessage}
+                  onSavePreset={() => {
+                    void handleSaveCurrentPreset()
+                  }}
+                  onSend={() => {
+                    void handleSendAIChatTurn()
+                  }}
+                  onApplyTurn={(turnId) => {
+                    void handleApplyAIChatTurn(turnId)
+                  }}
+                  onRevertTurn={(turnId) => {
+                    handleRevertAIChatTurnLocal(turnId)
+                  }}
+                  onResetSession={resetAIChatSession}
+                />
+              )}
+            </Stack>
+          ) : null}
+
+          {wizardStep === 2 ? (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  Refine the look
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+                  Fine-tune the preset with guided controls. Switch to advanced only if you want raw StyleSpec editing.
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+                <TextField
+                  label="Preset name"
+                  value={styleName}
+                  onChange={(event) => updateStyleSpecName(event.target.value)}
+                  placeholder="Tokyo Night Portrait"
+                />
+                <TextField
+                  label="Version"
+                  value={version}
+                  onChange={(event) => setVersion(event.target.value)}
+                  placeholder="v1"
+                />
+              </Box>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                <ToggleButtonGroup
+                  color="primary"
+                  value={editorMode}
+                  exclusive
+                  onChange={(_, next: EditorMode | null) => {
+                    if (next) {
+                      setEditorMode(next)
+                    }
+                  }}
+                  aria-label="editor-mode"
+                  size="small"
+                >
+                  <ToggleButton value="guided" aria-label="guided-mode">
+                    <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    Guided mode
+                  </ToggleButton>
+                  <ToggleButton value="advanced" aria-label="advanced-mode">
+                    <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    Advanced mode
+                  </ToggleButton>
+                </ToggleButtonGroup>
+
+                {editorMode === 'guided' ? (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={showAllProperties}
+                        onChange={(event) => setShowAllProperties(event.target.checked)}
+                        inputProps={{ 'aria-label': 'show-all-properties' }}
+                      />
+                    }
+                    label={
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <VisibilityIcon fontSize="small" />
+                        Show all properties
+                      </span>
+                    }
+                  />
+                ) : null}
               </Stack>
-            ) : null}
-
-            {journeyStartMode === 'advanced' || aiMode === 'generator' ? (
-              <AIGeneratorPanel
-                prompt={aiPrompt}
-                intents={aiIntents}
-                onPromptChange={setAiPrompt}
-                onIntentsChange={setAiIntents}
-                onPreview={() => {
-                  void handlePreviewAIPrompt()
-                }}
-                onGenerate={() => {
-                  void handleGenerateStyleSpec()
-                }}
-                onGenerateAndSave={() => {
-                  void handleGenerateAndSaveStyleSpec()
-                }}
-                previewing={isLoading('ai_preview')}
-                generating={isLoading('ai')}
-                generatingAndSaving={isLoading('ai_save')}
-                cooldownSeconds={aiCooldownSeconds}
-                meta={aiMeta}
-                preview={aiPromptPreview}
-              />
-            ) : (
-              <AIChatPanel
-                sessionId={aiChatSessionId}
-                turns={aiChatTurns}
-                message={aiChatMessage}
-                autoApply={aiChatAutoApply}
-                loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
-                applyingTurnId={aiChatApplyingTurnId}
-                savingPreset={isLoading('save_preset')}
-                onMessageChange={setAiChatMessage}
-                onAutoApplyChange={setAiChatAutoApply}
-                onSuggestionSelect={setAiChatMessage}
-                onSavePreset={() => {
-                  void handleSaveCurrentPreset()
-                }}
-                onSend={() => {
-                  void handleSendAIChatTurn()
-                }}
-                onApplyTurn={(turnId) => {
-                  void handleApplyAIChatTurn(turnId)
-                }}
-                onRevertTurn={(turnId) => {
-                  handleRevertAIChatTurnLocal(turnId)
-                }}
-                onResetSession={resetAIChatSession}
-              />
-            )}
-          </Stack>
-        </section>
-
-        <section className="flow-card">
-          <Stack spacing={1.5}>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                3. Refine the look
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
-                Use guided controls first. Open advanced mode only when you need raw StyleSpec editing.
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-              <TextField
-                label="Preset name"
-                value={styleName}
-                onChange={(event) => updateStyleSpecName(event.target.value)}
-                placeholder="Tokyo Night Portrait"
-              />
-              <TextField
-                label="Version"
-                value={version}
-                onChange={(event) => setVersion(event.target.value)}
-                placeholder="v1"
-              />
-            </Box>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 0.5 }}>
-              <ToggleButtonGroup
-                color="primary"
-                value={editorMode}
-                exclusive
-                onChange={(_, next: EditorMode | null) => {
-                  if (next) {
-                    setEditorMode(next)
-                  }
-                }}
-                aria-label="editor-mode"
-                size="small"
-              >
-                <ToggleButton value="guided" aria-label="guided-mode">
-                  <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
-                  Guided mode
-                </ToggleButton>
-                <ToggleButton value="advanced" aria-label="advanced-mode">
-                  <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
-                  Advanced mode
-                </ToggleButton>
-              </ToggleButtonGroup>
 
               {editorMode === 'guided' ? (
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={showAllProperties}
-                      onChange={(event) => setShowAllProperties(event.target.checked)}
-                      inputProps={{ 'aria-label': 'show-all-properties' }}
-                    />
-                  }
-                  label={
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <VisibilityIcon fontSize="small" />
-                      Show all properties
-                    </span>
-                  }
+                <StyleSpecControls
+                  spec={styleSpec}
+                  onChange={updateStyleSpecFromGuided}
+                  showAllProperties={showAllProperties}
                 />
+              ) : (
+                <>
+                  {jsonError ? (
+                    <Alert severity="warning" sx={{ mt: 1.5 }}>
+                      JSON contains errors. Fix it before saving the preset.
+                    </Alert>
+                  ) : null}
+                  <JsonEditor value={styleSpecJson} onChange={updateStyleSpecJson} hasError={jsonError} />
+                </>
+              )}
+            </Stack>
+          ) : null}
+
+          {wizardStep === 3 ? (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  Save and export
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+                  Save the preset first, then export a `.costyle` file or send it directly to Capture One.
+                </Typography>
+              </Box>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                <ToggleButtonGroup
+                  color="primary"
+                  value={executionMode}
+                  exclusive
+                  onChange={(_, next: RunnerExecutionMode | null) => {
+                    if (next) {
+                      setExecutionMode(next)
+                    }
+                  }}
+                  aria-label="execution-mode"
+                  size="small"
+                >
+                  <ToggleButton value="api" aria-label="execution-api">
+                    <DnsIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    Export file
+                  </ToggleButton>
+                  <ToggleButton value="host" aria-label="execution-host">
+                    <LaptopMacIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    Send to Capture One
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Stack>
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 1.25,
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+                }}
+              >
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<RocketLaunchIcon />}
+                  onClick={() => {
+                    void handleSaveCurrentPreset()
+                  }}
+                  disabled={activeAction !== null}
+                >
+                  {isLoading('save_preset') ? 'Saving preset...' : 'Save preset'}
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<DnsIcon />}
+                  onClick={() => {
+                    void handleCompileAndDownload()
+                  }}
+                  disabled={activeAction !== null || !createdVersion || executionMode !== 'api'}
+                >
+                  {isLoading('compile_download') ? 'Exporting...' : 'Export .costyle'}
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<LaptopMacIcon />}
+                  onClick={() => {
+                    void handleCompile()
+                  }}
+                  disabled={activeAction !== null || !createdVersion || executionMode !== 'host'}
+                >
+                  {isLoading('compile') ? 'Sending...' : 'Send to Capture One'}
+                </Button>
+              </Box>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                {createdStyle ? <Chip label={`Style ID: ${createdStyle.style_id}`} /> : null}
+                {createdVersion ? <Chip label={`Version: ${createdVersion.version}`} color="primary" /> : null}
+                {compileResult ? <Chip label={`Artifact ID: ${compileResult.artifact_id}`} color="success" /> : null}
+              </Stack>
+
+              {runnerJobId ? (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <Chip label={`Runner job ${runnerJobId}`} />
+                  <Chip label={runnerJobStatus ? `Status: ${runnerJobStatus}` : 'Status pending'} color="info" />
+                  <Button
+                    variant="text"
+                    onClick={() => {
+                      void handleRefreshRunnerJob()
+                    }}
+                    disabled={activeAction !== null}
+                  >
+                    {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Tracking job...' : 'Check sync status'}
+                  </Button>
+                </Stack>
               ) : null}
-            </Stack>
 
-            {editorMode === 'guided' ? (
-              <StyleSpecControls
-                spec={styleSpec}
-                onChange={updateStyleSpecFromGuided}
-                showAllProperties={showAllProperties}
-              />
-            ) : (
-              <>
-                {jsonError ? (
-                  <Alert severity="warning" sx={{ mt: 1.5 }}>
-                    JSON contains errors. Fix it before saving the preset.
-                  </Alert>
-                ) : null}
-                <JsonEditor value={styleSpecJson} onChange={updateStyleSpecJson} hasError={jsonError} />
-              </>
-            )}
-          </Stack>
+              {compileResult ? (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <Button
+                    variant="text"
+                    onClick={() => {
+                      void handleDownloadArtifact()
+                    }}
+                    disabled={activeAction !== null}
+                  >
+                    {isLoading('download') ? 'Downloading...' : 'Download latest export'}
+                  </Button>
+                </Stack>
+              ) : null}
+
+              <Accordion sx={{ backgroundColor: 'rgba(18, 23, 34, 0.88)' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <HistoryIcon fontSize="small" />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      History and previous exports
+                    </Typography>
+                  </Stack>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Stack spacing={2}>
+                    <ArtifactHistory
+                      artifacts={artifacts}
+                      loading={isLoading('history')}
+                      onDownload={(artifactId, filename) => {
+                        void triggerDownload(artifactId, filename)
+                      }}
+                    />
+
+                    <AIGenerationHistory
+                      records={aiHistory}
+                      loading={aiHistoryLoading}
+                      onRefresh={() => {
+                        void refreshAIGenerationHistory()
+                      }}
+                      onUsePreset={handleUsePresetFromHistory}
+                    />
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            </Stack>
+          ) : null}
         </section>
 
-        <section className="flow-card">
-          <Stack spacing={1.5}>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                4. Save and export
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
-                Save the preset first, then choose whether to export a `.costyle` file or send it directly to Capture One.
-              </Typography>
-            </Box>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.25}
+          justifyContent="space-between"
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+        >
+          <Button
+            variant="text"
+            startIcon={<ArrowBackIosNewIcon />}
+            onClick={() => setWizardStep((step) => Math.max(0, step - 1))}
+            disabled={wizardStep === 0}
+          >
+            Back
+          </Button>
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-              <ToggleButtonGroup
-                color="primary"
-                value={executionMode}
-                exclusive
-                onChange={(_, next: RunnerExecutionMode | null) => {
-                  if (next) {
-                    setExecutionMode(next)
-                  }
-                }}
-                aria-label="execution-mode"
-                size="small"
-              >
-                <ToggleButton value="api" aria-label="execution-api">
-                  <DnsIcon fontSize="small" sx={{ mr: 0.75 }} />
-                  Export file
-                </ToggleButton>
-                <ToggleButton value="host" aria-label="execution-host">
-                  <LaptopMacIcon fontSize="small" sx={{ mr: 0.75 }} />
-                  Send to Capture One
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 1.25,
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
-              }}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Step {wizardStep + 1} of {JOURNEY_STEPS.length}
+            </Typography>
+            <Button
+              variant="contained"
+              endIcon={<ArrowForwardIosIcon />}
+              onClick={() => setWizardStep((step) => Math.min(JOURNEY_STEPS.length - 1, step + 1))}
+              disabled={
+                wizardStep === JOURNEY_STEPS.length - 1 ||
+                (wizardStep === 0 && !journeyStartMode) ||
+                (wizardStep === 2 && !styleSpec.name.trim())
+              }
             >
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<RocketLaunchIcon />}
-                onClick={() => {
-                  void handleSaveCurrentPreset()
-                }}
-                disabled={activeAction !== null}
-              >
-                {isLoading('save_preset') ? 'Saving preset...' : 'Save preset'}
-              </Button>
-
-              <Button
-                variant="outlined"
-                size="large"
-                startIcon={<DnsIcon />}
-                onClick={() => {
-                  void handleCompileAndDownload()
-                }}
-                disabled={activeAction !== null || !createdVersion || executionMode !== 'api'}
-              >
-                {isLoading('compile_download') ? 'Exporting...' : 'Export .costyle'}
-              </Button>
-
-              <Button
-                variant="outlined"
-                size="large"
-                startIcon={<LaptopMacIcon />}
-                onClick={() => {
-                  void handleCompile()
-                }}
-                disabled={activeAction !== null || !createdVersion || executionMode !== 'host'}
-              >
-                {isLoading('compile') ? 'Sending...' : 'Send to Capture One'}
-              </Button>
-            </Box>
-
-            {runnerJobId ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Chip label={`Runner job ${runnerJobId}`} />
-                <Chip label={runnerJobStatus ? `Status: ${runnerJobStatus}` : 'Status pending'} color="info" />
-                <Button
-                  variant="text"
-                  onClick={() => {
-                    void handleRefreshRunnerJob()
-                  }}
-                  disabled={activeAction !== null}
-                >
-                  {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Tracking job...' : 'Check sync status'}
-                </Button>
-              </Stack>
-            ) : null}
-
-            {compileResult ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Chip label={`Artifact ${compileResult.artifact_id}`} color="success" />
-                <Button
-                  variant="text"
-                  onClick={() => {
-                    void handleDownloadArtifact()
-                  }}
-                  disabled={activeAction !== null}
-                >
-                  {isLoading('download') ? 'Downloading...' : 'Download latest export'}
-                </Button>
-              </Stack>
-            ) : null}
+              Continue
+            </Button>
           </Stack>
-        </section>
+        </Stack>
 
         {flowError ? <ErrorBanner error={flowError} /> : null}
 
@@ -1374,7 +1461,7 @@ export function HomePage() {
           </Alert>
         ) : null}
 
-        <Accordion>
+        <Accordion sx={{ backgroundColor: 'rgba(18, 23, 34, 0.88)' }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={1} alignItems="center">
               <InsightsIcon fontSize="small" />
@@ -1459,7 +1546,7 @@ export function HomePage() {
           </AccordionDetails>
         </Accordion>
 
-        <Accordion>
+        <Accordion sx={{ backgroundColor: 'rgba(18, 23, 34, 0.88)' }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={1} alignItems="center">
               <HistoryIcon fontSize="small" />

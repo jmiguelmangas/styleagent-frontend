@@ -93,14 +93,14 @@ describe('App integration', () => {
     render(<App />)
 
     const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'warm portrait with soft highlights')
     await user.click(screen.getByRole('button', { name: 'Generate StyleSpec' }))
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('AI Golden Hour')).toBeInTheDocument()
-    })
-    expect(await screen.findByText(/Generated with/i)).toBeInTheDocument()
+    expect(await screen.findByText('mock / mock-v1')).toBeInTheDocument()
     expect(await screen.findByText(/Latency:\s*42ms/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByDisplayValue('AI Golden Hour')).toBeInTheDocument()
   })
 
   it('previews the exact AI prompt and selected examples', async () => {
@@ -141,6 +141,7 @@ describe('App integration', () => {
     render(<App />)
 
     const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'tokyo night cinematic')
     await user.click(screen.getByRole('button', { name: 'Preview Prompt' }))
 
@@ -241,16 +242,11 @@ describe('App integration', () => {
     render(<App />)
 
     const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'cinematic style')
     await user.click(screen.getByRole('button', { name: 'Generate + Save Version' }))
-
-    const styleIdLabel = await screen.findByText('Style ID:')
-    const versionLabel = await screen.findByText('Version:')
-
-    await waitFor(() => {
-      expect(styleIdLabel.parentElement).toHaveTextContent('style_ai_1')
-      expect(versionLabel.parentElement).toHaveTextContent('v1')
-    })
+    expect(await screen.findByText('Style ID: style_ai_1')).toBeInTheDocument()
+    expect(await screen.findByText('Version: v1')).toBeInTheDocument()
   })
 
   it('compiles and downloads from one action in api mode', async () => {
@@ -320,13 +316,14 @@ describe('App integration', () => {
     render(<App />)
 
     const user = userEvent.setup()
-    await user.clear(screen.getByLabelText('Preset name'))
-    await user.type(screen.getByLabelText('Preset name'), 'Download Ready')
+    await user.click(screen.getByRole('button', { name: /Describe the look/i }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Save preset' }))
     await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
 
     await waitFor(() => {
-      expect(screen.getByText(/Artifact ID:/).parentElement).toHaveTextContent('artifact_dl_1')
+      expect(screen.getByText('Artifact ID: artifact_dl_1')).toBeInTheDocument()
     })
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/artifacts\/artifact_dl_1$/),
@@ -359,6 +356,7 @@ describe('App integration', () => {
 
     render(<App />)
     const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'rate limit prompt')
     await user.click(screen.getByRole('button', { name: 'Generate StyleSpec' }))
 
@@ -523,12 +521,14 @@ describe('App integration', () => {
 
     render(<App />)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'ai-mode-chat' }))
+    await user.click(screen.getByRole('button', { name: /Start a conversation/i }))
     await user.type(screen.getByRole('textbox', { name: 'Message to AI' }), 'add contrast')
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
     expect(await screen.findByText(/Detected contrast goal/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Apply turn' }))
-    expect(await screen.findByText('Applied')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Apply turn' })).not.toBeInTheDocument()
+    })
   })
 })
