@@ -1,4 +1,5 @@
 import type {
+  AIHealthResponse,
   AIChatSession,
   AIChatSessionDetail,
   AIChatTurn,
@@ -397,6 +398,30 @@ export function parseHealthResponse(value: unknown): HealthResponse {
     throw new Error('Invalid health response payload')
   }
   return { status: 'ok' }
+}
+
+export function parseAIHealthResponse(value: unknown): AIHealthResponse {
+  if (
+    !isRecord(value) ||
+    (value.status !== 'available' && value.status !== 'degraded' && value.status !== 'unavailable') ||
+    typeof value.available !== 'boolean' ||
+    typeof value.provider !== 'string' ||
+    typeof value.model !== 'string'
+  ) {
+    throw new Error('Invalid AI health response payload')
+  }
+
+  if (value.message !== undefined && value.message !== null && typeof value.message !== 'string') {
+    throw new Error('Invalid AI health response payload')
+  }
+
+  return {
+    status: value.status,
+    available: value.available,
+    provider: value.provider,
+    model: value.model,
+    message: value.message ?? null,
+  }
 }
 
 export function parseStyle(value: unknown): Style {

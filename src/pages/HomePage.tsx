@@ -77,6 +77,7 @@ import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { JsonEditor } from '../components/JsonEditor'
 import { StyleSpecControls } from '../components/StyleSpecControls'
+import { useAIHealth } from '../hooks/useAIHealth'
 import { useHealth } from '../hooks/useHealth'
 
 const INITIAL_STYLE_SPEC: StyleSpec = {
@@ -152,6 +153,7 @@ function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: str
 
 export function HomePage() {
   const { data, error, loading } = useHealth()
+  const { data: aiHealth, error: aiHealthError, loading: aiHealthLoading } = useAIHealth()
 
   const [styleName, setStyleName] = useState('Nolan Warm')
   const [version, setVersion] = useState('v1')
@@ -977,15 +979,38 @@ export function HomePage() {
                   variant="filled"
                 />
                 <Chip
-                  label={journeyStartMode === 'chat' ? 'AI conversation' : journeyStartMode === 'advanced' ? 'Advanced start' : 'AI generator'}
+                  label={
+                    aiHealthLoading
+                      ? 'Checking AI'
+                      : aiHealthError
+                        ? 'AI unavailable'
+                        : aiHealth?.status === 'available'
+                          ? 'AI ready'
+                          : aiHealth?.status === 'degraded'
+                            ? 'AI degraded'
+                            : 'AI unavailable'
+                  }
+                  color={
+                    aiHealthLoading
+                      ? 'default'
+                      : aiHealthError || aiHealth?.status === 'unavailable'
+                        ? 'error'
+                        : aiHealth?.status === 'degraded'
+                          ? 'warning'
+                          : 'success'
+                  }
+                  variant="filled"
+                />
+                <Chip
+                  label={
+                    aiHealth
+                      ? `${aiHealth.provider} / ${aiHealth.model}`
+                      : aiMeta
+                        ? `${aiMeta.provider} / ${aiMeta.model}`
+                        : 'AI model unknown'
+                  }
                   sx={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff' }}
                 />
-                {aiMeta ? (
-                  <Chip
-                    label={`${aiMeta.provider} / ${aiMeta.model}`}
-                    sx={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff' }}
-                  />
-                ) : null}
               </Stack>
             </Stack>
 
@@ -1579,6 +1604,11 @@ export function HomePage() {
         {error ? (
           <Alert severity="error">
             {error.message} ({error.status})
+          </Alert>
+        ) : null}
+        {!aiHealthError && aiHealth?.message && aiHealth.status !== 'available' ? (
+          <Alert severity={aiHealth.status === 'degraded' ? 'warning' : 'error'}>
+            {aiHealth.message}
           </Alert>
         ) : null}
       </Stack>

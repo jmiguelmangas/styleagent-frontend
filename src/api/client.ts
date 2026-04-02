@@ -1,4 +1,5 @@
 import {
+  parseAIHealthResponse,
   parseAIChatSession,
   parseAIChatSessionDetail,
   parseAIChatTurnResponse,
@@ -13,6 +14,7 @@ import {
   parseStyleVersion,
 } from './normalize'
 import type {
+  AIHealthResponse,
   AIChatSession,
   AIChatSessionDetail,
   AIChatTurnResponse,
@@ -165,6 +167,10 @@ async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
 
 export async function getHealth(): Promise<HealthResponse> {
   return parseHealthResponse(await request('/health'))
+}
+
+export async function getAIHealth(): Promise<AIHealthResponse> {
+  return parseAIHealthResponse(await request('/ai/health'))
 }
 
 export async function createStyle(payload: StyleCreate): Promise<Style> {

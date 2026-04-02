@@ -15,6 +15,18 @@ describe('App integration', () => {
       'fetch',
       vi.fn(async (input: string | URL) => {
         const url = String(input)
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/health')) {
           return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
         }
@@ -28,6 +40,8 @@ describe('App integration', () => {
     render(<App />)
 
     expect(await screen.findByText('Backend ok')).toBeInTheDocument()
+    expect(await screen.findByText('AI ready')).toBeInTheDocument()
+    expect(await screen.findByText('ollama / llama3.1:8b')).toBeInTheDocument()
   })
 
   it('renders network error message when backend is unreachable', async () => {
@@ -49,6 +63,18 @@ describe('App integration', () => {
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input)
 
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/health')) {
           return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
         }
@@ -97,7 +123,6 @@ describe('App integration', () => {
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'warm portrait with soft highlights')
     await user.click(screen.getByRole('button', { name: 'Generate StyleSpec' }))
 
-    expect(await screen.findByText('mock / mock-v1')).toBeInTheDocument()
     expect(await screen.findByText(/Latency:\s*42ms/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByDisplayValue('AI Golden Hour')).toBeInTheDocument()
@@ -109,6 +134,18 @@ describe('App integration', () => {
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input)
 
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/health')) {
           return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
         }
@@ -157,6 +194,18 @@ describe('App integration', () => {
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input)
 
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/health')) {
           return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
         }
@@ -253,6 +302,18 @@ describe('App integration', () => {
     const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
       const url = String(input)
 
+      if (url.endsWith('/ai/health')) {
+        return new Response(
+          JSON.stringify({
+            status: 'available',
+            available: true,
+            provider: 'ollama',
+            model: 'llama3.1:8b',
+            message: 'Ollama is reachable and model llama3.1:8b is installed.',
+          }),
+          { status: 200 },
+        )
+      }
       if (url.endsWith('/health')) {
         return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
       }
@@ -336,6 +397,18 @@ describe('App integration', () => {
       'fetch',
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input)
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/health')) {
           return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
         }
@@ -369,6 +442,18 @@ describe('App integration', () => {
       'fetch',
       vi.fn(async (input: string | URL) => {
         const url = String(input)
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/health')) {
           return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
         }
@@ -424,6 +509,18 @@ describe('App integration', () => {
       'fetch',
       vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input)
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/health')) {
           return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
         }

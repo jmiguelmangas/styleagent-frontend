@@ -3,7 +3,23 @@ import { expect, test, type Page } from '@playwright/test'
 function mockApi(page: Page) {
   let artifactsCallCount = 0
 
-  page.route('**/health', async (route) => {
+  page.route(/.*\/health$/, async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    if (pathname === '/ai/health') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'available',
+          available: true,
+          provider: 'ollama',
+          model: 'llama3.1:8b',
+          message: 'Ollama is reachable and model llama3.1:8b is installed.',
+        }),
+      })
+      return
+    }
+
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -278,6 +294,8 @@ test('renders a dark wizard shell with a single backend status indicator', async
 
   await expect(page.getByText('Create a look step by step')).toBeVisible()
   await expect(page.getByText('Backend ok')).toHaveCount(1)
+  await expect(page.getByText('AI ready')).toHaveCount(1)
+  await expect(page.getByText('ollama / llama3.1:8b')).toHaveCount(1)
   await expect(page.getByText('Choose how you want to start')).toBeVisible()
   await expect(page.getByText('Create your first look')).toHaveCount(0)
 

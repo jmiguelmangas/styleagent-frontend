@@ -7,6 +7,14 @@ export interface HealthResponse {
   status: 'ok'
 }
 
+export interface AIHealthResponse {
+  status: 'available' | 'degraded' | 'unavailable'
+  available: boolean
+  provider: string
+  model: string
+  message?: string | null
+}
+
 export interface SafePolicy {
   remove_lens_light_falloff: boolean
   remove_white_balance: boolean
