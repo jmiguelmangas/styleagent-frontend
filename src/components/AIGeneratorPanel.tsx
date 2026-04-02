@@ -1,16 +1,24 @@
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import CodeIcon from '@mui/icons-material/Code'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt'
 import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates'
+import PreviewIcon from '@mui/icons-material/Visibility'
 import {
   Alert,
   Autocomplete,
   Box,
   Button,
   Chip,
+  Collapse,
   Stack,
   TextField,
   Typography,
 } from '@mui/material'
+import { useState } from 'react'
+
+import type { AIPromptPreviewResponse } from '../api/types'
 
 type AIGenerationMeta = {
   provider: string
@@ -26,12 +34,15 @@ type AIGeneratorPanelProps = {
   intents: string[]
   onPromptChange: (next: string) => void
   onIntentsChange: (next: string[]) => void
+  onPreview: () => void
   onGenerate: () => void
   onGenerateAndSave: () => void
+  previewing: boolean
   generating: boolean
   generatingAndSaving: boolean
   cooldownSeconds: number
   meta: AIGenerationMeta | null
+  preview: AIPromptPreviewResponse | null
 }
 
 const INTENT_SUGGESTIONS = [
@@ -50,14 +61,18 @@ export function AIGeneratorPanel({
   intents,
   onPromptChange,
   onIntentsChange,
+  onPreview,
   onGenerate,
   onGenerateAndSave,
+  previewing,
   generating,
   generatingAndSaving,
   cooldownSeconds,
   meta,
+  preview,
 }: AIGeneratorPanelProps) {
   const isRateLimited = cooldownSeconds > 0
+  const [showPreviewPrompt, setShowPreviewPrompt] = useState(false)
 
   return (
     <Box sx={{ mt: 1.5, p: 2, border: '1px solid #c9d3e2', borderRadius: 2, backgroundColor: '#fff' }}>
@@ -103,30 +118,115 @@ export function AIGeneratorPanel({
         )}
       />
 
-      <Button
-        variant="contained"
-        sx={{ mt: 1.5 }}
-        startIcon={<AutoFixHighIcon />}
-        onClick={onGenerate}
-        disabled={generating || generatingAndSaving || isRateLimited || !prompt.trim()}
-      >
-        {generating ? 'Generating style...' : 'Generate StyleSpec'}
-      </Button>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ mt: 1.5 }}>
+        <Button
+          variant="outlined"
+          startIcon={<PreviewIcon />}
+          onClick={onPreview}
+          disabled={previewing || generating || generatingAndSaving || isRateLimited || !prompt.trim()}
+        >
+          {previewing ? 'Previewing prompt...' : 'Preview Prompt'}
+        </Button>
 
-      <Button
-        variant="outlined"
-        sx={{ mt: 1.2 }}
-        startIcon={<AutoFixHighIcon />}
-        onClick={onGenerateAndSave}
-        disabled={generating || generatingAndSaving || isRateLimited || !prompt.trim()}
-      >
-        {generatingAndSaving ? 'Generating and saving...' : 'Generate + Save Version'}
-      </Button>
+        <Button
+          variant="contained"
+          startIcon={<AutoFixHighIcon />}
+          onClick={onGenerate}
+          disabled={previewing || generating || generatingAndSaving || isRateLimited || !prompt.trim()}
+        >
+          {generating ? 'Generating style...' : 'Generate StyleSpec'}
+        </Button>
+
+        <Button
+          variant="outlined"
+          startIcon={<AutoFixHighIcon />}
+          onClick={onGenerateAndSave}
+          disabled={previewing || generating || generatingAndSaving || isRateLimited || !prompt.trim()}
+        >
+          {generatingAndSaving ? 'Generating and saving...' : 'Generate + Save Version'}
+        </Button>
+      </Stack>
 
       {isRateLimited ? (
         <Alert severity="info" sx={{ mt: 1.2 }}>
           AI rate limit active. Retry in {cooldownSeconds}s.
         </Alert>
+      ) : null}
+
+      {preview ? (
+        <Stack spacing={1.2} sx={{ mt: 1.5 }}>
+          <Alert severity="info" icon={<CodeIcon fontSize="inherit" />}>
+            Prompt preview ready with <strong>{preview.provider}</strong> / <strong>{preview.model}</strong>
+            {` — ${preview.examples_count} example${preview.examples_count === 1 ? '' : 's'} selected`}
+          </Alert>
+
+          {preview.examples.length > 0 ? (
+            <Box sx={{ border: '1px solid #d6deea', borderRadius: 2, p: 1.5, backgroundColor: '#f8fbff' }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Selected examples
+              </Typography>
+              <Stack spacing={1}>
+                {preview.examples.map((example, index) => (
+                  <Box
+                    key={`${example.source ?? 'example'}-${index}`}
+                    sx={{ border: '1px solid #d6deea', borderRadius: 1.5, p: 1.2, backgroundColor: '#fff' }}
+                  >
+                    <Typography variant="body2" fontWeight={700}>
+                      {example.source ?? `Example ${index + 1}`}
+                    </Typography>
+                    {example.prompt ? (
+                      <Typography variant="body2" sx={{ color: '#415066', mt: 0.4 }}>
+                        {example.prompt}
+                      </Typography>
+                    ) : null}
+                    {example.intent && example.intent.length > 0 ? (
+                      <Stack direction="row" spacing={0.8} sx={{ mt: 0.8, flexWrap: 'wrap' }}>
+                        {example.intent.map((intent) => (
+                          <Chip key={`${intent}-${index}`} label={intent} size="small" variant="outlined" />
+                        ))}
+                      </Stack>
+                    ) : null}
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+          ) : null}
+
+          <Button
+            variant="text"
+            onClick={() => setShowPreviewPrompt((current) => !current)}
+            startIcon={showPreviewPrompt ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            {showPreviewPrompt ? 'Hide full prompt' : 'Show full prompt'}
+          </Button>
+
+          <Collapse in={showPreviewPrompt}>
+            <Box
+              sx={{
+                border: '1px solid #d6deea',
+                borderRadius: 2,
+                p: 1.5,
+                backgroundColor: '#0e1726',
+                color: '#e8eef8',
+                overflowX: 'auto',
+              }}
+            >
+              <Typography
+                component="pre"
+                sx={{
+                  m: 0,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  fontFamily: 'ui-monospace, SFMono-Regular, SFMono-Regular, Consolas, monospace',
+                  fontSize: 13,
+                }}
+              >
+                {preview.prompt}
+              </Typography>
+            </Box>
+          </Collapse>
+        </Stack>
       ) : null}
 
       {meta && (

@@ -4,6 +4,8 @@ import type {
   AIChatTurn,
   AIChatTurnResponse,
   AIParameterChange,
+  AIPromptPreviewExample,
+  AIPromptPreviewResponse,
   AIGenerationRecord,
   Artifact,
   CompileResponse,
@@ -172,6 +174,43 @@ function isAIGenerationRecord(value: unknown): value is AIGenerationRecord {
   }
 
   return true
+}
+
+function isAIPromptPreviewExample(value: unknown): value is AIPromptPreviewExample {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (value.source !== undefined && typeof value.source !== 'string') {
+    return false
+  }
+  if (value.prompt !== undefined && typeof value.prompt !== 'string') {
+    return false
+  }
+  if (value.intent !== undefined) {
+    if (!Array.isArray(value.intent) || !value.intent.every((entry) => typeof entry === 'string')) {
+      return false
+    }
+  }
+  if (value.style_spec !== undefined && !isStyleSpec(value.style_spec)) {
+    return false
+  }
+  return true
+}
+
+function isAIPromptPreviewResponse(value: unknown): value is AIPromptPreviewResponse {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (
+    typeof value.provider !== 'string' ||
+    typeof value.model !== 'string' ||
+    typeof value.prompt !== 'string' ||
+    typeof value.examples_count !== 'number' ||
+    !Array.isArray(value.examples)
+  ) {
+    return false
+  }
+  return value.examples.every(isAIPromptPreviewExample)
 }
 
 function isAIParameterChange(value: unknown): value is AIParameterChange {
@@ -391,6 +430,13 @@ export function parseGenerateStyleSpecResponse(value: unknown): GenerateStyleSpe
 export function parseAIGenerationHistory(value: unknown): AIGenerationRecord[] {
   if (!Array.isArray(value) || !value.every(isAIGenerationRecord)) {
     throw new Error('Invalid AI generation history payload')
+  }
+  return value
+}
+
+export function parseAIPromptPreviewResponse(value: unknown): AIPromptPreviewResponse {
+  if (!isAIPromptPreviewResponse(value)) {
+    throw new Error('Invalid AI prompt preview payload')
   }
   return value
 }

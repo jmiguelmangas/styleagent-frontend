@@ -3,6 +3,7 @@ import {
   parseAIChatSessionDetail,
   parseAIChatTurnResponse,
   parseAIGenerationHistory,
+  parseAIPromptPreviewResponse,
   parseArtifacts,
   parseCompileResponse,
   parseGenerateStyleSpecResponse,
@@ -16,6 +17,7 @@ import type {
   AIChatSessionDetail,
   AIChatTurnResponse,
   AIGenerationRecord,
+  AIPromptPreviewResponse,
   ApiError,
   Artifact,
   CompileResponse,
@@ -202,6 +204,17 @@ export async function generateStyleSpec(
 ): Promise<GenerateStyleSpecResponse> {
   return parseGenerateStyleSpecResponse(
     await request('/ai/generate-style-spec', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  )
+}
+
+export async function previewAIPrompt(
+  payload: GenerateStyleSpecRequest,
+): Promise<AIPromptPreviewResponse> {
+  return parseAIPromptPreviewResponse(
+    await request('/ai/debug/prompt-preview', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

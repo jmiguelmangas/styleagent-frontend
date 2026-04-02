@@ -30,11 +30,13 @@ import {
   getRunnerJob,
   listAIGenerations,
   listStyleArtifacts,
+  previewAIPrompt,
   toApiError,
 } from '../api/client'
 import type {
   AIChatTurn,
   AIGenerationRecord,
+  AIPromptPreviewResponse,
   ApiError,
   Artifact,
   CompileResponse,
@@ -86,6 +88,7 @@ const INITIAL_STYLE_SPEC: StyleSpec = {
 }
 
 type ActionKey =
+  | 'ai_preview'
   | 'ai'
   | 'ai_save'
   | 'ai_chat'
@@ -133,6 +136,7 @@ export function HomePage() {
       'provider' | 'model' | 'rationale' | 'warnings' | 'generation_ms' | 'fallback_used'
     > | null
   >(null)
+  const [aiPromptPreview, setAiPromptPreview] = useState<AIPromptPreviewResponse | null>(null)
   const [aiMode, setAiMode] = useState<AIMode>('generator')
   const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
   const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
@@ -342,6 +346,30 @@ export function HomePage() {
       } else {
         setFlowError(apiError)
       }
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
+  async function handlePreviewAIPrompt() {
+    const prompt = aiPrompt.trim()
+    if (!prompt) {
+      setFlowError({ message: 'Prompt is required to preview the AI request.', status: 400 })
+      return
+    }
+
+    setActiveAction('ai_preview')
+    setFlowError(null)
+
+    try {
+      const preview = await previewAIPrompt({
+        prompt,
+        intent: aiIntents.length > 0 ? aiIntents : undefined,
+        target: 'captureone',
+      })
+      setAiPromptPreview(preview)
+    } catch (err) {
+      setFlowError(toApiError(err))
     } finally {
       setActiveAction(null)
     }
@@ -870,16 +898,21 @@ export function HomePage() {
             intents={aiIntents}
             onPromptChange={setAiPrompt}
             onIntentsChange={setAiIntents}
+            onPreview={() => {
+              void handlePreviewAIPrompt()
+            }}
             onGenerate={() => {
               void handleGenerateStyleSpec()
             }}
             onGenerateAndSave={() => {
               void handleGenerateAndSaveStyleSpec()
             }}
+            previewing={isLoading('ai_preview')}
             generating={isLoading('ai')}
             generatingAndSaving={isLoading('ai_save')}
             cooldownSeconds={aiCooldownSeconds}
             meta={aiMeta}
+            preview={aiPromptPreview}
           />
         ) : (
           <AIChatPanel

@@ -82,6 +82,22 @@ export interface GenerateStyleSpecResponse {
   fallback_used?: boolean
 }
 
+export interface AIPromptPreviewExample {
+  source?: string
+  prompt?: string
+  intent?: string[]
+  style_spec?: StyleSpec
+  [key: string]: unknown
+}
+
+export interface AIPromptPreviewResponse {
+  provider: string
+  model: string
+  prompt: string
+  examples_count: number
+  examples: AIPromptPreviewExample[]
+}
+
 export interface AIGenerationRecord {
   generation_id: string
   created_at: string

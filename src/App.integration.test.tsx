@@ -103,6 +103,53 @@ describe('App integration', () => {
     expect(await screen.findByText(/Latency:\s*42ms/)).toBeInTheDocument()
   })
 
+  it('previews the exact AI prompt and selected examples', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input)
+
+        if (url.endsWith('/health')) {
+          return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+        }
+        if (url.includes('/ai/generations')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
+        if (url.endsWith('/ai/debug/prompt-preview') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              prompt: 'SYSTEM: build a cinematic preset\nEXAMPLE: Fujicolor Everyday\nUSER: tokyo night cinematic',
+              examples_count: 1,
+              examples: [
+                {
+                  source: 'Fujicolor Everyday',
+                  prompt: 'Warm filmic street photography look',
+                  intent: ['cinematic', 'warm'],
+                },
+              ],
+            }),
+            { status: 200 },
+          )
+        }
+
+        return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+      }),
+    )
+
+    render(<App />)
+
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'tokyo night cinematic')
+    await user.click(screen.getByRole('button', { name: 'Preview Prompt' }))
+
+    expect(await screen.findByText(/Prompt preview ready with/i)).toBeInTheDocument()
+    expect(await screen.findByText('Fujicolor Everyday')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Show full prompt' }))
+    expect(await screen.findByText(/SYSTEM: build a cinematic preset/)).toBeInTheDocument()
+  })
+
   it('generates and saves style/version in one action', async () => {
     vi.stubGlobal(
       'fetch',
