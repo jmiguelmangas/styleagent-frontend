@@ -78,6 +78,19 @@ export function AIChatPanel({
           placeholder="Example: make it brighter but keep skin tones natural"
           fullWidth
           size="small"
+          variant="outlined"
+          InputLabelProps={{ shrink: true }}
+          sx={{
+            '& .MuiInputLabel-root': {
+              color: 'rgba(226, 232, 240, 0.78)',
+            },
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: 'rgba(12, 18, 28, 0.6)',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(255,255,255,0.12)',
+            },
+          }}
         />
         <Button
           type="button"
