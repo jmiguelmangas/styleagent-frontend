@@ -75,7 +75,15 @@ export function AIGeneratorPanel({
   const [showPreviewPrompt, setShowPreviewPrompt] = useState(false)
 
   return (
-    <Box sx={{ mt: 1.5, p: 2, border: '1px solid #c9d3e2', borderRadius: 2, backgroundColor: '#fff' }}>
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 2,
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 2,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+      }}
+    >
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
         <PsychologyAltIcon fontSize="small" />
         <Typography variant="subtitle1" fontWeight={700}>
@@ -83,7 +91,7 @@ export function AIGeneratorPanel({
         </Typography>
       </Stack>
 
-      <Typography variant="body2" sx={{ color: '#415066', mb: 1.5 }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
         Describe the look you want. Generated `StyleSpec` is loaded into the editor below and can be adjusted.
       </Typography>
 
@@ -161,7 +169,14 @@ export function AIGeneratorPanel({
           </Alert>
 
           {preview.examples.length > 0 ? (
-            <Box sx={{ border: '1px solid #d6deea', borderRadius: 2, p: 1.5, backgroundColor: '#f8fbff' }}>
+            <Box
+              sx={{
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 2,
+                p: 1.5,
+                backgroundColor: 'rgba(8,12,20,0.56)',
+              }}
+            >
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
                 Selected examples
               </Typography>
@@ -169,13 +184,18 @@ export function AIGeneratorPanel({
                 {preview.examples.map((example, index) => (
                   <Box
                     key={`${example.source ?? 'example'}-${index}`}
-                    sx={{ border: '1px solid #d6deea', borderRadius: 1.5, p: 1.2, backgroundColor: '#fff' }}
+                    sx={{
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 1.5,
+                      p: 1.2,
+                      backgroundColor: 'rgba(255,255,255,0.03)',
+                    }}
                   >
                     <Typography variant="body2" fontWeight={700}>
                       {example.source ?? `Example ${index + 1}`}
                     </Typography>
                     {example.prompt ? (
-                      <Typography variant="body2" sx={{ color: '#415066', mt: 0.4 }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.4 }}>
                         {example.prompt}
                       </Typography>
                     ) : null}

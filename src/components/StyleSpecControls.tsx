@@ -123,7 +123,15 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
   }
 
   return (
-    <Box sx={{ mt: 1.5, p: 2, border: '1px solid #c9d3e2', borderRadius: 2, backgroundColor: '#fff' }}>
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 2,
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 2,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+      }}
+    >
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
         <AutoFixHighIcon fontSize="small" />
         <Typography variant="subtitle1" fontWeight={700}>

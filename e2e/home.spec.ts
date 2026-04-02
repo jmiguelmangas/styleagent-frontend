@@ -11,6 +11,55 @@ function mockApi(page: Page) {
     })
   })
 
+  page.route('**/ai/generations**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          generation_id: 'gen_1',
+          created_at: '2026-03-01T00:00:00Z',
+          client_key: '127.0.0.1',
+          prompt: 'cinematic warm portrait',
+          intent: ['cinematic', 'warm'],
+          constraints: null,
+          target: 'captureone',
+          style_spec: {
+            name: 'AI Cinematic Warm',
+            intent: ['cinematic', 'warm'],
+            captureone: { keys: { Exposure: 0.2, Contrast: 8 } },
+          },
+          rationale: 'Generated from prompt',
+          warnings: [],
+          provider: 'mock',
+          model: 'mock-v1',
+          generation_ms: 37,
+          fallback_used: false,
+        },
+      ]),
+    })
+  })
+
+  page.route('**/ai/debug/prompt-preview', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        provider: 'ollama',
+        model: 'llama3.1:8b',
+        prompt: 'SYSTEM: build a cinematic preset\nUSER: tokyo night',
+        examples_count: 1,
+        examples: [
+          {
+            source: 'Fujicolor Everyday',
+            prompt: 'Warm filmic street photography look',
+            intent: ['cinematic', 'warm'],
+          },
+        ],
+      }),
+    })
+  })
+
   page.route('**/styles', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.continue()
@@ -37,7 +86,14 @@ function mockApi(page: Page) {
         style_spec: {
           name: 'AI Nolan Warm',
           intent: ['cinematic', 'warm'],
-          captureone: { keys: { Exposure: 0.2, Contrast: 8 } },
+          captureone: {
+            keys: {
+              Exposure: 0.2,
+              Contrast: 8,
+              WhiteBalanceTemperature: 5800,
+              Highlights: -12,
+            },
+          },
           safe: {
             remove_lens_light_falloff: true,
             remove_white_balance: true,
@@ -50,6 +106,101 @@ function mockApi(page: Page) {
         model: 'mock-v1',
         generation_ms: 37,
         fallback_used: false,
+      }),
+    })
+  })
+
+  page.route('**/ai/chat/sessions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        session_id: 'sess_1',
+        title: 'Session',
+        status: 'active',
+        style_spec: {
+          name: 'Base',
+          intent: ['portrait'],
+          captureone: { keys: { Exposure: 0.1, Contrast: 4 } },
+        },
+        created_at: '2026-03-01T00:00:00Z',
+        updated_at: '2026-03-01T00:00:00Z',
+      }),
+    })
+  })
+
+  page.route('**/ai/chat/sessions/sess_1/turns', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        session: {
+          session_id: 'sess_1',
+          title: 'Session',
+          status: 'active',
+          style_spec: {
+            name: 'Base',
+            intent: ['portrait'],
+            captureone: { keys: { Exposure: 0.1, Contrast: 4 } },
+          },
+          created_at: '2026-03-01T00:00:00Z',
+          updated_at: '2026-03-01T00:00:00Z',
+        },
+        turn: {
+          turn_id: 'turn_1',
+          session_id: 'sess_1',
+          user_message: 'add contrast',
+          assistant_message: 'I prepared updates.',
+          proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
+          warnings: [],
+          guidance: {
+            detected_goals: ['contrast_tuning'],
+            reasoning_summary: 'Detected contrast goal.',
+            suggested_next_messages: ['reduce highlights'],
+          },
+          applied: false,
+          created_at: '2026-03-01T00:00:01Z',
+        },
+      }),
+    })
+  })
+
+  page.route('**/ai/chat/sessions/sess_1/turns/turn_1/apply', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        session: {
+          session_id: 'sess_1',
+          title: 'Session',
+          status: 'active',
+          style_spec: {
+            name: 'Base',
+            intent: ['portrait'],
+            captureone: { keys: { Exposure: 0.1, Contrast: 8 } },
+          },
+          created_at: '2026-03-01T00:00:00Z',
+          updated_at: '2026-03-01T00:00:02Z',
+        },
+        turn: {
+          turn_id: 'turn_1',
+          session_id: 'sess_1',
+          user_message: 'add contrast',
+          assistant_message: 'I prepared updates.',
+          proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
+          warnings: [],
+          guidance: {
+            detected_goals: ['contrast_tuning'],
+            reasoning_summary: 'Detected contrast goal.',
+            suggested_next_messages: ['reduce highlights'],
+          },
+          applied: true,
+          created_at: '2026-03-01T00:00:01Z',
+        },
       }),
     })
   })
@@ -121,81 +272,77 @@ function mockApi(page: Page) {
   })
 }
 
-test('supports guided and advanced style editing modes', async ({ page }) => {
+test('renders a dark wizard shell with a single backend status indicator', async ({ page }) => {
   mockApi(page)
   await page.goto('/')
 
-  await expect(page.getByText('Backend status: ok')).toBeVisible()
-  await expect(page.getByLabel('guided-mode')).toBeVisible()
-  await expect(page.getByLabel('advanced-mode')).toBeVisible()
-  await expect(page.getByText('Show all properties')).toBeVisible()
+  await expect(page.getByText('Create a look step by step')).toBeVisible()
+  await expect(page.getByText('Backend ok')).toHaveCount(1)
+  await expect(page.getByText('Choose how you want to start')).toBeVisible()
+  await expect(page.getByText('Create your first look')).toHaveCount(0)
 
-  await page.getByLabel('advanced-mode').click()
-  await expect(page.getByLabel('StyleSpec JSON')).toBeVisible()
-
-  await page.getByLabel('StyleSpec JSON').fill('{')
-  await expect(page.getByText('JSON contains errors. Fix it before creating a version.')).toBeVisible()
-
-  await page.getByLabel('guided-mode').click()
-  await page.getByText('Show all properties').click()
-  await expect(page.getByText('All Capture One Properties')).toBeVisible()
+  const pageBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+  expect(pageBackground).not.toBe('rgb(255, 255, 255)')
 })
 
-test('runs the core flow with mocked backend', async ({ page }) => {
+test('runs the wizard flow end to end in generator mode', async ({ page }) => {
   mockApi(page)
   await page.goto('/')
 
-  await page.getByRole('button', { name: '1. Create Style' }).click()
-  await expect(page.getByText('Style ID: style_123')).toBeVisible()
-
-  await page.getByRole('button', { name: '2. Create Version' }).click()
-  await expect(page.getByText('Version: v1')).toBeVisible()
-
-  await page.getByRole('button', { name: '3. Compile' }).click()
-  await expect(page.locator('.flow-output').getByText('Artifact ID: artifact_001')).toBeVisible()
-  await expect(page.locator('.flow-output').getByText('SHA256: abc123')).toBeVisible()
-  await expect(page.getByText('nolan-warm-v1.costyle')).toBeVisible()
-})
-
-test('generates and saves version directly from AI panel', async ({ page }) => {
-  mockApi(page)
-  await page.goto('/')
+  await page.getByRole('button', { name: /Describe the look/i }).click()
+  await expect(page.getByText('Create your first look')).toBeVisible()
 
   await page.getByRole('textbox', { name: 'Prompt' }).fill('cinematic warm look')
-  await page.getByRole('button', { name: 'Generate + Save Version' }).click()
-
-  await expect(page.locator('.flow-output').getByText('Style ID: style_123')).toBeVisible()
-  await expect(page.locator('.flow-output').getByText('Version: v1')).toBeVisible()
+  await page.getByRole('button', { name: 'Generate StyleSpec' }).click()
   await expect(page.getByText('Generated with')).toBeVisible()
   await expect(page.getByText('Latency: 37ms')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Refine the look' })).toBeVisible()
+  await expect(page.getByLabel('Preset name')).toHaveValue('AI Nolan Warm')
+
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Save and export' })).toBeVisible()
+  await page.getByRole('button', { name: 'Save preset' }).click()
+  await expect(page.locator('text=Style ID: style_123').first()).toBeVisible()
+  await expect(page.locator('text=Version: v1').first()).toBeVisible()
+
+  await page.getByRole('button', { name: 'Export .costyle' }).click()
+  await expect(page.locator('text=Artifact ID: artifact_001').first()).toBeVisible()
 })
 
-test('compiles and downloads in one click', async ({ page }) => {
+test('supports chat mode in the wizard and applies a turn', async ({ page }) => {
   mockApi(page)
   await page.goto('/')
 
-  await page.getByRole('button', { name: '1. Create Style' }).click()
-  await page.getByRole('button', { name: '2. Create Version' }).click()
-  await page.getByRole('button', { name: '3b. Compile + Download' }).click()
+  await page.getByRole('button', { name: /Start a conversation/i }).click()
+  await page.getByRole('textbox', { name: 'Message to AI' }).fill('add contrast')
+  await page.getByRole('button', { name: 'Send' }).click()
 
-  await expect(page.locator('.flow-output').getByText('Artifact ID: artifact_001')).toBeVisible()
-  await expect(page.locator('.flow-output').getByText('SHA256: abc123')).toBeVisible()
+  await expect(page.getByText('Detected contrast goal.')).toBeVisible()
+  await page.getByRole('button', { name: 'Apply turn' }).click()
+  await expect(page.getByRole('button', { name: 'Apply turn' })).toHaveCount(0)
 })
 
-test('shows rate-limit cooldown when AI endpoint returns 429', async ({ page }) => {
+test('keeps dark surfaces in generator and refine steps', async ({ page }) => {
   mockApi(page)
-  await page.route('**/ai/generate-style-spec', async (route) => {
-    await route.fulfill({
-      status: 429,
-      contentType: 'application/json',
-      body: JSON.stringify({ message: 'rate limit' }),
-    })
-  })
   await page.goto('/')
 
-  await page.getByRole('textbox', { name: 'Prompt' }).fill('rate-limit prompt')
+  await page.getByRole('button', { name: /Describe the look/i }).click()
+
+  const generatorBackground = await page
+    .getByText('AI Style Generator')
+    .locator('xpath=ancestor::*[contains(@class,"MuiBox-root")][1]')
+    .evaluate((node) => getComputedStyle(node as HTMLElement).backgroundColor)
+  expect(generatorBackground).not.toBe('rgb(255, 255, 255)')
+
+  await page.getByRole('textbox', { name: 'Prompt' }).fill('tokyo night cinematic')
   await page.getByRole('button', { name: 'Generate StyleSpec' }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
 
-  await expect(page.getByText('AI rate limit active.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Generate StyleSpec' })).toBeDisabled()
+  const refineBackground = await page
+    .getByText('Style Properties')
+    .locator('xpath=ancestor::*[contains(@class,"MuiBox-root")][1]')
+    .evaluate((node) => getComputedStyle(node as HTMLElement).backgroundColor)
+  expect(refineBackground).not.toBe('rgb(255, 255, 255)')
 })

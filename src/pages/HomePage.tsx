@@ -77,7 +77,6 @@ import { ArtifactHistory } from '../components/ArtifactHistory'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { JsonEditor } from '../components/JsonEditor'
 import { StyleSpecControls } from '../components/StyleSpecControls'
-import { StatusCard } from '../components/StatusCard'
 import { useHealth } from '../hooks/useHealth'
 
 const INITIAL_STYLE_SPEC: StyleSpec = {
@@ -1577,12 +1576,11 @@ export function HomePage() {
           </AccordionDetails>
         </Accordion>
 
-        <StatusCard
-          title="API Health"
-          loading={loading}
-          status={data?.status ?? null}
-          error={error}
-        />
+        {error ? (
+          <Alert severity="error">
+            {error.message} ({error.status})
+          </Alert>
+        ) : null}
       </Stack>
     </main>
   )

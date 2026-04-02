@@ -27,7 +27,7 @@ describe('App integration', () => {
 
     render(<App />)
 
-    expect(await screen.findByText('Backend status: ok')).toBeInTheDocument()
+    expect(await screen.findByText('Backend ok')).toBeInTheDocument()
   })
 
   it('renders network error message when backend is unreachable', async () => {

@@ -104,12 +104,28 @@ export function AIChatPanel({
         <ul className="history-list" aria-label="chat-turn-list">
           {turns.map((turn) => (
             <li key={turn.turn_id}>
-              <Paper variant="outlined" sx={{ p: 1.25, mb: 1, backgroundColor: '#f5f7fb' }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.25,
+                  mb: 1,
+                  backgroundColor: 'rgba(35, 49, 78, 0.55)',
+                  borderColor: 'rgba(122, 162, 255, 0.22)',
+                }}
+              >
                 <Typography variant="body2">
                   <strong>You:</strong> {turn.user_message}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" sx={{ p: 1.25, mb: 1 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.25,
+                  mb: 1,
+                  backgroundColor: 'rgba(255,255,255,0.03)',
+                  borderColor: 'rgba(255,255,255,0.08)',
+                }}
+              >
                 <Typography variant="body2">
                   <strong>Assistant:</strong> {turn.assistant_message}
                 </Typography>
