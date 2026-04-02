@@ -1253,7 +1253,8 @@ export function HomePage() {
 
               <Box
                 sx={{
-                  p: 1.25,
+                  px: 1.25,
+                  py: 1,
                   borderRadius: 2.5,
                   border: '1px solid rgba(255,255,255,0.08)',
                   backgroundColor: 'rgba(12, 18, 28, 0.5)',
@@ -1261,13 +1262,21 @@ export function HomePage() {
               >
                 <Stack
                   direction={{ xs: 'column', md: 'row' }}
-                  spacing={1.25}
+                  spacing={1}
                   alignItems={{ xs: 'flex-start', md: 'center' }}
                   justifyContent="space-between"
                 >
-                  <Box>
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700 }}>
-                      Editing mode
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Refine
                     </Typography>
                     <ToggleButtonGroup
                       color="primary"
@@ -1280,22 +1289,35 @@ export function HomePage() {
                       }}
                       aria-label="editor-mode"
                       size="small"
-                      sx={{ mt: 0.75 }}
+                      sx={{
+                        '& .MuiToggleButton-root': {
+                          px: 1.25,
+                          py: 0.6,
+                          borderColor: 'rgba(255,255,255,0.08)',
+                          textTransform: 'none',
+                        },
+                      }}
                     >
                       <ToggleButton value="guided" aria-label="guided-mode">
                         <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
-                        Guided mode
+                        Guided
                       </ToggleButton>
                       <ToggleButton value="advanced" aria-label="advanced-mode">
                         <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
-                        Advanced mode
+                        Advanced
                       </ToggleButton>
                     </ToggleButtonGroup>
-                  </Box>
+                  </Stack>
 
                   {editorMode === 'guided' ? (
                     <FormControlLabel
-                      sx={{ m: 0 }}
+                      sx={{
+                        m: 0,
+                        '& .MuiFormControlLabel-label': {
+                          color: 'text.secondary',
+                          fontSize: '0.9rem',
+                        },
+                      }}
                       control={
                         <Switch
                           checked={showAllProperties}
