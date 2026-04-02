@@ -122,28 +122,42 @@ export function AIGeneratorPanel({
         }}
       />
 
-      <Autocomplete
-        multiple
-        freeSolo
-        options={INTENT_SUGGESTIONS}
-        value={intents}
-        onChange={(_, next) => onIntentsChange(next.map((entry) => String(entry).trim()).filter(Boolean))}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip variant="outlined" label={option} {...getTagProps({ index })} key={`${option}-${index}`} />
-          ))
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Intents (optional)"
-            placeholder="cinematic, warm, portrait"
-            sx={{ mt: 1.5 }}
-            variant="outlined"
-            InputLabelProps={{ shrink: true }}
-          />
-        )}
-      />
+      <Box sx={{ mt: 1.5 }}>
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', mb: 0.75, color: 'rgba(226, 232, 240, 0.78)', fontWeight: 600 }}
+        >
+          Intents (optional)
+        </Typography>
+        <Autocomplete
+          multiple
+          freeSolo
+          options={INTENT_SUGGESTIONS}
+          value={intents}
+          onChange={(_, next) => onIntentsChange(next.map((entry) => String(entry).trim()).filter(Boolean))}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip variant="outlined" label={option} {...getTagProps({ index })} key={`${option}-${index}`} />
+            ))
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="cinematic, warm, portrait"
+              variant="outlined"
+              hiddenLabel
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'rgba(12, 18, 28, 0.6)',
+                },
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255,255,255,0.12)',
+                },
+              }}
+            />
+          )}
+        />
+      </Box>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ mt: 1.5 }}>
         <Button
