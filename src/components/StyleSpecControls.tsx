@@ -51,6 +51,51 @@ const COLOR_NUMERIC_CONTROLS = [
 
 type ControlDefinition = (typeof CORE_NUMERIC_CONTROLS)[number] | (typeof COLOR_NUMERIC_CONTROLS)[number]
 
+const sliderSx = {
+  py: 0.5,
+  '& .MuiSlider-rail': {
+    opacity: 1,
+    backgroundColor: 'rgba(71, 85, 105, 0.5)',
+    height: 4,
+    borderRadius: 999,
+  },
+  '& .MuiSlider-track': {
+    border: 'none',
+    height: 4,
+    borderRadius: 999,
+    background: 'linear-gradient(90deg, rgba(96,165,250,0.9) 0%, rgba(129,140,248,0.95) 100%)',
+  },
+  '& .MuiSlider-thumb': {
+    width: 16,
+    height: 16,
+    backgroundColor: '#dbeafe',
+    border: '2px solid rgba(129,140,248,0.95)',
+    boxShadow: '0 0 0 4px rgba(96,165,250,0.12)',
+    '&:hover, &.Mui-focusVisible': {
+      boxShadow: '0 0 0 6px rgba(96,165,250,0.18)',
+    },
+  },
+  '& .MuiSlider-mark': {
+    width: 2,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(148, 163, 184, 0.55)',
+  },
+} as const
+
+const checkboxLabelSx = {
+  m: 0,
+  pr: 1.1,
+  py: 0.35,
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.08)',
+  backgroundColor: 'rgba(255,255,255,0.02)',
+  '& .MuiFormControlLabel-label': {
+    fontSize: '0.92rem',
+    color: 'rgba(226, 232, 240, 0.92)',
+  },
+} as const
+
 export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSpecControlsProps) {
   const [newPropertyKey, setNewPropertyKey] = useState('')
   const [newPropertyValue, setNewPropertyValue] = useState('')
@@ -148,6 +193,7 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
           step={control.step}
           marks={control.key === 'Exposure'}
           onChange={(_, next) => updateNumericKey(control.key, Number(next))}
+          sx={sliderSx}
         />
       </Box>
     )
@@ -235,10 +281,11 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
                   Intent tags
                 </Typography>
               </Stack>
-              <FormGroup row>
+              <FormGroup row sx={{ gap: 1 }}>
                 {INTENT_OPTIONS.map((intent) => (
                   <FormControlLabel
                     key={intent}
+                    sx={checkboxLabelSx}
                     control={<Checkbox checked={spec.intent.includes(intent)} onChange={() => toggleIntent(intent)} />}
                     label={intent}
                   />
@@ -252,8 +299,9 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
           'Output Safety',
           'Protect export behavior and optional removals.',
           <Stack spacing={1}>
-            <FormGroup>
+            <FormGroup sx={{ gap: 1 }}>
               <FormControlLabel
+                sx={checkboxLabelSx}
                 control={
                   <Checkbox
                     checked={spec.safe?.remove_lens_light_falloff ?? true}
@@ -263,6 +311,7 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
                 label="Remove lens light falloff"
               />
               <FormControlLabel
+                sx={checkboxLabelSx}
                 control={
                   <Checkbox
                     checked={spec.safe?.remove_white_balance ?? true}
@@ -272,6 +321,7 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
                 label="Remove white balance"
               />
               <FormControlLabel
+                sx={checkboxLabelSx}
                 control={
                   <Checkbox
                     checked={spec.safe?.remove_exposure ?? false}
