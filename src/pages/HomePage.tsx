@@ -1209,61 +1209,110 @@ export function HomePage() {
               </Box>
 
               <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-                <TextField
-                  label="Preset name"
-                  value={styleName}
-                  onChange={(event) => updateStyleSpecName(event.target.value)}
-                  placeholder="Tokyo Night Portrait"
-                />
-                <TextField
-                  label="Version"
-                  value={version}
-                  onChange={(event) => setVersion(event.target.value)}
-                  placeholder="v1"
-                />
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2.5,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    backgroundColor: 'rgba(12, 18, 28, 0.5)',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
+                    Preset
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    hiddenLabel
+                    inputProps={{ 'aria-label': 'Preset name' }}
+                    value={styleName}
+                    onChange={(event) => updateStyleSpecName(event.target.value)}
+                    placeholder="Tokyo Night Portrait"
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2.5,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    backgroundColor: 'rgba(12, 18, 28, 0.5)',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
+                    Version
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    hiddenLabel
+                    inputProps={{ 'aria-label': 'Version' }}
+                    value={version}
+                    onChange={(event) => setVersion(event.target.value)}
+                    placeholder="v1"
+                  />
+                </Box>
               </Box>
 
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-                <ToggleButtonGroup
-                  color="primary"
-                  value={editorMode}
-                  exclusive
-                  onChange={(_, next: EditorMode | null) => {
-                    if (next) {
-                      setEditorMode(next)
-                    }
-                  }}
-                  aria-label="editor-mode"
-                  size="small"
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: 2.5,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  backgroundColor: 'rgba(12, 18, 28, 0.5)',
+                }}
+              >
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  spacing={1.25}
+                  alignItems={{ xs: 'flex-start', md: 'center' }}
+                  justifyContent="space-between"
                 >
-                  <ToggleButton value="guided" aria-label="guided-mode">
-                    <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
-                    Guided mode
-                  </ToggleButton>
-                  <ToggleButton value="advanced" aria-label="advanced-mode">
-                    <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
-                    Advanced mode
-                  </ToggleButton>
-                </ToggleButtonGroup>
+                  <Box>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700 }}>
+                      Editing mode
+                    </Typography>
+                    <ToggleButtonGroup
+                      color="primary"
+                      value={editorMode}
+                      exclusive
+                      onChange={(_, next: EditorMode | null) => {
+                        if (next) {
+                          setEditorMode(next)
+                        }
+                      }}
+                      aria-label="editor-mode"
+                      size="small"
+                      sx={{ mt: 0.75 }}
+                    >
+                      <ToggleButton value="guided" aria-label="guided-mode">
+                        <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
+                        Guided mode
+                      </ToggleButton>
+                      <ToggleButton value="advanced" aria-label="advanced-mode">
+                        <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
+                        Advanced mode
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
 
-                {editorMode === 'guided' ? (
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={showAllProperties}
-                        onChange={(event) => setShowAllProperties(event.target.checked)}
-                        inputProps={{ 'aria-label': 'show-all-properties' }}
-                      />
-                    }
-                    label={
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <VisibilityIcon fontSize="small" />
-                        Show all properties
-                      </span>
-                    }
-                  />
-                ) : null}
-              </Stack>
+                  {editorMode === 'guided' ? (
+                    <FormControlLabel
+                      sx={{ m: 0 }}
+                      control={
+                        <Switch
+                          checked={showAllProperties}
+                          onChange={(event) => setShowAllProperties(event.target.checked)}
+                          inputProps={{ 'aria-label': 'show-all-properties' }}
+                        />
+                      }
+                      label={
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <VisibilityIcon fontSize="small" />
+                          Show all properties
+                        </span>
+                      }
+                    />
+                  ) : null}
+                </Stack>
+              </Box>
 
               {editorMode === 'guided' ? (
                 <StyleSpecControls

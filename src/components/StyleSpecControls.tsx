@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest'
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Checkbox,
-  Divider,
   FormControl,
   FormControlLabel,
   FormGroup,
@@ -19,6 +21,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
 import type { SafePolicy, StyleSpec } from '../api/types'
 
@@ -45,6 +48,8 @@ const COLOR_NUMERIC_CONTROLS = [
   { key: 'ColorBalanceGreen', label: 'Green Balance', min: -50, max: 50, step: 1, precision: 0 },
   { key: 'ColorBalanceBlue', label: 'Blue Balance', min: -50, max: 50, step: 1, precision: 0 },
 ] as const
+
+type ControlDefinition = (typeof CORE_NUMERIC_CONTROLS)[number] | (typeof COLOR_NUMERIC_CONTROLS)[number]
 
 export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSpecControlsProps) {
   const [newPropertyKey, setNewPropertyKey] = useState('')
@@ -122,6 +127,53 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
     })
   }
 
+  function renderNumericControl(control: ControlDefinition) {
+    const value = getNumericKey(control.key, 0)
+    const display = control.precision > 0 ? value.toFixed(control.precision) : Math.round(value)
+
+    return (
+      <Box key={control.key}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.4 }}>
+          <Typography variant="body2" sx={{ color: 'rgba(226, 232, 240, 0.92)' }}>
+            {control.label}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(148, 163, 184, 0.95)' }}>
+            {display}
+          </Typography>
+        </Stack>
+        <Slider
+          value={value}
+          min={control.min}
+          max={control.max}
+          step={control.step}
+          marks={control.key === 'Exposure'}
+          onChange={(_, next) => updateNumericKey(control.key, Number(next))}
+        />
+      </Box>
+    )
+  }
+
+  function sectionCard(title: string, subtitle: string, content: ReactNode) {
+    return (
+      <Box
+        sx={{
+          p: 1.75,
+          borderRadius: 2.5,
+          border: '1px solid rgba(255,255,255,0.08)',
+          backgroundColor: 'rgba(12, 18, 28, 0.56)',
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.35 }}>
+          {title}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1.4 }}>
+          {subtitle}
+        </Typography>
+        {content}
+      </Box>
+    )
+  }
+
   return (
     <Box
       sx={{
@@ -139,181 +191,180 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
         </Typography>
       </Stack>
 
-      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-        {CORE_NUMERIC_CONTROLS.map((control) => {
-          const value = getNumericKey(control.key, 0)
-          const display = control.precision > 0 ? value.toFixed(control.precision) : Math.round(value)
-          return (
-            <Box key={control.key}>
-              <Typography variant="body2">
-                {control.label} ({display})
-              </Typography>
-              <Slider
-                value={value}
-                min={control.min}
-                max={control.max}
-                step={control.step}
-                marks={control.key === 'Exposure'}
-                onChange={(_, next) => updateNumericKey(control.key, Number(next))}
-              />
+      <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' } }}>
+        {sectionCard(
+          'Light',
+          'Balance exposure and shape contrast.',
+          <Box sx={{ display: 'grid', gap: 1.35, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+            {CORE_NUMERIC_CONTROLS.map((control) => renderNumericControl(control))}
+          </Box>,
+        )}
+
+        {sectionCard(
+          'Color',
+          'Adjust white balance and color bias.',
+          <Box sx={{ display: 'grid', gap: 1.35, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+            {COLOR_NUMERIC_CONTROLS.map((control) => renderNumericControl(control))}
+          </Box>,
+        )}
+
+        {sectionCard(
+          'Mood',
+          'Define character, curve and overall feel.',
+          <Stack spacing={1.5}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="tone-curve-label">Tone Curve</InputLabel>
+              <Select
+                labelId="tone-curve-label"
+                label="Tone Curve"
+                value={typeof spec.captureone.keys.ToneCurve === 'string' ? spec.captureone.keys.ToneCurve : 'Film Standard'}
+                onChange={(event) => updateStringKey('ToneCurve', event.target.value)}
+              >
+                {TONE_CURVE_OPTIONS.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <SettingsSuggestIcon fontSize="small" />
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  Intent tags
+                </Typography>
+              </Stack>
+              <FormGroup row>
+                {INTENT_OPTIONS.map((intent) => (
+                  <FormControlLabel
+                    key={intent}
+                    control={<Checkbox checked={spec.intent.includes(intent)} onChange={() => toggleIntent(intent)} />}
+                    label={intent}
+                  />
+                ))}
+              </FormGroup>
             </Box>
-          )
-        })}
-        <Box>
-          <FormControl fullWidth>
-            <InputLabel id="tone-curve-label">Tone Curve</InputLabel>
-            <Select
-              labelId="tone-curve-label"
-              label="Tone Curve"
-              value={typeof spec.captureone.keys.ToneCurve === 'string' ? spec.captureone.keys.ToneCurve : 'Film Standard'}
-              onChange={(event) => updateStringKey('ToneCurve', event.target.value)}
-            >
-              {TONE_CURVE_OPTIONS.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-        <Box>
-          <TextField
-            label="Capture One Notes"
-            fullWidth
-            multiline
-            minRows={3}
-            value={spec.captureone.notes ?? ''}
-            onChange={(event) =>
-              onChange({
-                ...spec,
-                captureone: {
-                  ...spec.captureone,
-                  notes: event.target.value,
-                },
-              })
-            }
-          />
-        </Box>
-      </Box>
+          </Stack>,
+        )}
 
-      <Divider sx={{ my: 2 }} />
-      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-        Color and tonal controls
-      </Typography>
-      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-        {COLOR_NUMERIC_CONTROLS.map((control) => {
-          const value = getNumericKey(control.key, 0)
-          return (
-            <Box key={control.key}>
-              <Typography variant="body2">
-                {control.label} ({Math.round(value)})
-              </Typography>
-              <Slider
-                value={value}
-                min={control.min}
-                max={control.max}
-                step={control.step}
-                onChange={(_, next) => updateNumericKey(control.key, Number(next))}
+        {sectionCard(
+          'Output Safety',
+          'Protect export behavior and optional removals.',
+          <Stack spacing={1}>
+            <FormGroup>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={spec.safe?.remove_lens_light_falloff ?? true}
+                    onChange={(event) => updateSafePolicy('remove_lens_light_falloff', event.target.checked)}
+                  />
+                }
+                label="Remove lens light falloff"
               />
-            </Box>
-          )
-        })}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={spec.safe?.remove_white_balance ?? true}
+                    onChange={(event) => updateSafePolicy('remove_white_balance', event.target.checked)}
+                  />
+                }
+                label="Remove white balance"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={spec.safe?.remove_exposure ?? false}
+                    onChange={(event) => updateSafePolicy('remove_exposure', event.target.checked)}
+                  />
+                }
+                label="Remove exposure"
+              />
+            </FormGroup>
+
+            <TextField
+              label="Capture One Notes"
+              fullWidth
+              multiline
+              minRows={3}
+              value={spec.captureone.notes ?? ''}
+              onChange={(event) =>
+                onChange({
+                  ...spec,
+                  captureone: {
+                    ...spec.captureone,
+                    notes: event.target.value,
+                  },
+                })
+              }
+            />
+          </Stack>,
+        )}
       </Box>
-
-      <Divider sx={{ my: 2 }} />
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-        <SettingsSuggestIcon fontSize="small" />
-        <Typography variant="subtitle2" fontWeight={700}>
-          Intent tags
-        </Typography>
-      </Stack>
-      <FormGroup row>
-        {INTENT_OPTIONS.map((intent) => (
-          <FormControlLabel
-            key={intent}
-            control={<Checkbox checked={spec.intent.includes(intent)} onChange={() => toggleIntent(intent)} />}
-            label={intent}
-          />
-        ))}
-      </FormGroup>
-
-      <Divider sx={{ my: 2 }} />
-      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-        Safe policy
-      </Typography>
-      <FormGroup>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={spec.safe?.remove_lens_light_falloff ?? true}
-              onChange={(event) => updateSafePolicy('remove_lens_light_falloff', event.target.checked)}
-            />
-          }
-          label="Remove lens light falloff"
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={spec.safe?.remove_white_balance ?? true}
-              onChange={(event) => updateSafePolicy('remove_white_balance', event.target.checked)}
-            />
-          }
-          label="Remove white balance"
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={spec.safe?.remove_exposure ?? false}
-              onChange={(event) => updateSafePolicy('remove_exposure', event.target.checked)}
-            />
-          }
-          label="Remove exposure"
-        />
-      </FormGroup>
 
       {showAllProperties && (
         <>
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-            All Capture One Properties
-          </Typography>
-          <Stack spacing={1}>
-            {Object.entries(spec.captureone.keys).map(([key, value]) => (
-              <TextField
-                key={key}
-                fullWidth
-                label={key}
-                value={String(value)}
-                onChange={(event) => updateGenericKeyValue(key, event.target.value)}
-              />
-            ))}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                label="New property key"
-                fullWidth
-                value={newPropertyKey}
-                onChange={(event) => setNewPropertyKey(event.target.value)}
-              />
-              <TextField
-                label="New property value"
-                fullWidth
-                value={newPropertyValue}
-                onChange={(event) => setNewPropertyValue(event.target.value)}
-              />
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                disabled={!newPropertyKey.trim()}
-                onClick={() => {
-                  updateGenericKeyValue(newPropertyKey.trim(), newPropertyValue)
-                  setNewPropertyKey('')
-                  setNewPropertyValue('')
-                }}
-              >
-                Add
-              </Button>
-            </Stack>
-          </Stack>
+          <Accordion
+            disableGutters
+            defaultExpanded={false}
+            sx={{
+              mt: 1.5,
+              borderRadius: 2.5,
+              backgroundColor: 'rgba(12, 18, 28, 0.5)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              '&:before': { display: 'none' },
+            }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack spacing={0.2}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  All Capture One Properties
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Inspect and edit raw keys when you need full control.
+                </Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={1}>
+                {Object.entries(spec.captureone.keys).map(([key, value]) => (
+                  <TextField
+                    key={key}
+                    fullWidth
+                    label={key}
+                    value={String(value)}
+                    onChange={(event) => updateGenericKeyValue(key, event.target.value)}
+                  />
+                ))}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <TextField
+                    label="New property key"
+                    fullWidth
+                    value={newPropertyKey}
+                    onChange={(event) => setNewPropertyKey(event.target.value)}
+                  />
+                  <TextField
+                    label="New property value"
+                    fullWidth
+                    value={newPropertyValue}
+                    onChange={(event) => setNewPropertyValue(event.target.value)}
+                  />
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    disabled={!newPropertyKey.trim()}
+                    onClick={() => {
+                      updateGenericKeyValue(newPropertyKey.trim(), newPropertyValue)
+                      setNewPropertyKey('')
+                      setNewPropertyValue('')
+                    }}
+                  >
+                    Add
+                  </Button>
+                </Stack>
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
         </>
       )}
     </Box>
