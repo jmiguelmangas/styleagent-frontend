@@ -320,11 +320,10 @@ describe('App integration', () => {
     render(<App />)
 
     const user = userEvent.setup()
-    await user.clear(screen.getByLabelText('Style name'))
-    await user.type(screen.getByLabelText('Style name'), 'Download Ready')
-    await user.click(screen.getByRole('button', { name: '1. Create Style' }))
-    await user.click(screen.getByRole('button', { name: '2. Create Version' }))
-    await user.click(screen.getByRole('button', { name: '3b. Compile + Download' }))
+    await user.clear(screen.getByLabelText('Preset name'))
+    await user.type(screen.getByLabelText('Preset name'), 'Download Ready')
+    await user.click(screen.getByRole('button', { name: 'Save preset' }))
+    await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
 
     await waitFor(() => {
       expect(screen.getByText(/Artifact ID:/).parentElement).toHaveTextContent('artifact_dl_1')
@@ -414,6 +413,7 @@ describe('App integration', () => {
     render(<App />)
 
     const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'History and previous exports' }))
     expect(await screen.findByText('AI generation history')).toBeInTheDocument()
     expect(await screen.findByText('AI Cinematic Warm')).toBeInTheDocument()
     expect(await screen.findByText('Prompt: cinematic warm portrait')).toBeInTheDocument()

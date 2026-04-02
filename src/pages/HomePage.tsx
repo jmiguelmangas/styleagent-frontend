@@ -3,18 +3,36 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import DataObjectIcon from '@mui/icons-material/DataObject'
 import DnsIcon from '@mui/icons-material/Dns'
 import LaptopMacIcon from '@mui/icons-material/LaptopMac'
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import ChatIcon from '@mui/icons-material/Chat'
+import HistoryIcon from '@mui/icons-material/History'
+import InsightsIcon from '@mui/icons-material/Insights'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import TuneIcon from '@mui/icons-material/Tune'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
+  Box,
+  Button,
+  Card,
+  CardActionArea,
+  CardContent,
+  Chip,
   Collapse,
-  IconButton,
   FormControlLabel,
+  IconButton,
   Stack,
+  Step,
+  StepLabel,
+  Stepper,
   Switch,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Typography,
 } from '@mui/material'
 
 import {
@@ -91,6 +109,7 @@ type ActionKey =
   | 'ai_preview'
   | 'ai'
   | 'ai_save'
+  | 'save_preset'
   | 'ai_chat'
   | 'ai_chat_apply'
   | 'ai_chat_save'
@@ -103,6 +122,15 @@ type ActionKey =
   | 'job'
 type EditorMode = 'guided' | 'advanced'
 type AIMode = 'generator' | 'chat'
+type JourneyStartMode = 'generator' | 'chat' | 'advanced'
+type JourneyStep = 'start' | 'create' | 'refine' | 'export'
+
+const JOURNEY_STEPS: { key: JourneyStep; label: string }[] = [
+  { key: 'start', label: 'Start' },
+  { key: 'create', label: 'Create look' },
+  { key: 'refine', label: 'Refine' },
+  { key: 'export', label: 'Save & export' },
+]
 
 function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: string): string {
   switch (errorCode) {
@@ -138,6 +166,7 @@ export function HomePage() {
   >(null)
   const [aiPromptPreview, setAiPromptPreview] = useState<AIPromptPreviewResponse | null>(null)
   const [aiMode, setAiMode] = useState<AIMode>('generator')
+  const [journeyStartMode, setJourneyStartMode] = useState<JourneyStartMode>('generator')
   const [styleSpec, setStyleSpec] = useState<StyleSpec>(INITIAL_STYLE_SPEC)
   const [styleSpecJson, setStyleSpecJson] = useState(() => JSON.stringify(INITIAL_STYLE_SPEC, null, 2))
   const [jsonError, setJsonError] = useState(false)
@@ -178,9 +207,37 @@ export function HomePage() {
     aiRateLimitUntilMs && aiRateLimitUntilMs > nowMs
       ? Math.ceil((aiRateLimitUntilMs - nowMs) / 1000)
       : 0
+  const hasConversationTurns = aiChatTurns.length > 0
+  const hasGeneratedLook = aiMeta !== null || hasConversationTurns
+  const hasSavedPreset = createdVersion !== null
+  const hasPreparedExport = compileResult !== null || runnerJobId !== null
+  const journeyStepIndex = hasPreparedExport
+    ? 3
+    : hasSavedPreset
+      ? 3
+      : hasGeneratedLook
+        ? 2
+        : 1
 
   function isLoading(action: ActionKey): boolean {
     return activeAction === action
+  }
+
+  function selectJourneyStart(mode: JourneyStartMode) {
+    setJourneyStartMode(mode)
+    setFlowError(null)
+    if (mode === 'chat') {
+      setAiMode('chat')
+      setEditorMode('guided')
+      return
+    }
+    if (mode === 'advanced') {
+      setAiMode('generator')
+      setEditorMode('advanced')
+      return
+    }
+    setAiMode('generator')
+    setEditorMode('guided')
   }
 
   function activateAiCooldown(seconds: number) {
@@ -826,26 +883,50 @@ export function HomePage() {
     }
   }
 
-  async function handleSavePresetFromChat() {
-    setActiveAction('ai_chat_save')
+  async function handleSaveCurrentPreset() {
+    const normalizedStyleName = styleName.trim() || styleSpec.name
+    const normalizedVersion = version.trim()
+
+    if (!normalizedStyleName) {
+      setFlowError({ message: 'Preset name is required before saving.', status: 400 })
+      return
+    }
+    if (!normalizedVersion) {
+      setFlowError({ message: 'Version is required before saving.', status: 400 })
+      return
+    }
+
+    setActiveAction('save_preset')
     setFlowError(null)
+
     try {
+      const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
       let nextStyle = createdStyle
       if (!nextStyle) {
-        nextStyle = await createStyle({
-          name: styleName.trim() || styleSpec.name,
-        })
+        nextStyle = await createStyle({ name: normalizedStyleName })
         setCreatedStyle(nextStyle)
       }
+
       const created = await createStyleVersion(nextStyle.style_id, {
-        version,
-        style_spec: styleSpec,
-        safe_policy: styleSpec.safe,
+        version: normalizedVersion,
+        style_spec: payload,
+        safe_policy: payload.safe,
       })
       setCreatedVersion(created)
       await refreshArtifactHistory(nextStyle.style_id)
     } catch (err) {
-      setFlowError(toApiError(err))
+      const apiError = toApiError(err)
+      if (apiError.status === 409) {
+        setFlowError({
+          status: 409,
+          message: 'This preset version already exists. Change the preset name or version and try again.',
+        })
+      } else if (err instanceof SyntaxError || err instanceof Error) {
+        setJsonError(true)
+        setFlowError({ message: err.message || 'Invalid JSON in StyleSpec.', status: 400 })
+      } else {
+        setFlowError(apiError)
+      }
     } finally {
       setActiveAction(null)
     }
@@ -853,239 +934,424 @@ export function HomePage() {
 
   return (
     <main className="page">
-      <header>
-        <h1>StyleAgent Frontend</h1>
-        <p>MVP core flow with improved UX and artifact history.</p>
-      </header>
-
-      <StatusCard
-        title="API Health"
-        loading={loading}
-        status={data?.status ?? null}
-        error={error}
-      />
-
-      <section className="flow-card">
-        <h2>Core Flow</h2>
-
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 1, mb: 1 }}>
-          <ToggleButtonGroup
-            color="primary"
-            value={aiMode}
-            exclusive
-            onChange={(_, next: AIMode | null) => {
-              if (next) {
-                setAiMode(next)
-              }
-            }}
-            aria-label="ai-mode"
-            size="small"
-          >
-            <ToggleButton value="generator" aria-label="ai-mode-generator">
-              <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
-              AI Generator
-            </ToggleButton>
-            <ToggleButton value="chat" aria-label="ai-mode-chat">
-              <ChatIcon fontSize="small" sx={{ mr: 0.75 }} />
-              AI Conversation
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Stack>
-
-        {aiMode === 'generator' ? (
-          <AIGeneratorPanel
-            prompt={aiPrompt}
-            intents={aiIntents}
-            onPromptChange={setAiPrompt}
-            onIntentsChange={setAiIntents}
-            onPreview={() => {
-              void handlePreviewAIPrompt()
-            }}
-            onGenerate={() => {
-              void handleGenerateStyleSpec()
-            }}
-            onGenerateAndSave={() => {
-              void handleGenerateAndSaveStyleSpec()
-            }}
-            previewing={isLoading('ai_preview')}
-            generating={isLoading('ai')}
-            generatingAndSaving={isLoading('ai_save')}
-            cooldownSeconds={aiCooldownSeconds}
-            meta={aiMeta}
-            preview={aiPromptPreview}
-          />
-        ) : (
-          <AIChatPanel
-            sessionId={aiChatSessionId}
-            turns={aiChatTurns}
-            message={aiChatMessage}
-            autoApply={aiChatAutoApply}
-            loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
-            applyingTurnId={aiChatApplyingTurnId}
-            savingPreset={isLoading('ai_chat_save')}
-            onMessageChange={setAiChatMessage}
-            onAutoApplyChange={setAiChatAutoApply}
-            onSuggestionSelect={setAiChatMessage}
-            onSavePreset={() => {
-              void handleSavePresetFromChat()
-            }}
-            onSend={() => {
-              void handleSendAIChatTurn()
-            }}
-            onApplyTurn={(turnId) => {
-              void handleApplyAIChatTurn(turnId)
-            }}
-            onRevertTurn={(turnId) => {
-              handleRevertAIChatTurnLocal(turnId)
-            }}
-            onResetSession={resetAIChatSession}
-          />
-        )}
-
-        <label htmlFor="style-name">Style name</label>
-        <input
-          id="style-name"
-          value={styleName}
-          onChange={(event) => updateStyleSpecName(event.target.value)}
-          placeholder="Nolan Warm"
-        />
-
-        <label htmlFor="style-version">Version</label>
-        <input
-          id="style-version"
-          value={version}
-          onChange={(event) => setVersion(event.target.value)}
-          placeholder="v1"
-        />
-
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 1.5 }}>
-          <ToggleButtonGroup
-            color="primary"
-            value={editorMode}
-            exclusive
-            onChange={(_, next: EditorMode | null) => {
-              if (next) {
-                setEditorMode(next)
-              }
-            }}
-            aria-label="editor-mode"
-            size="small"
-          >
-            <ToggleButton value="guided" aria-label="guided-mode">
-              <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
-              Guided mode
-            </ToggleButton>
-            <ToggleButton value="advanced" aria-label="advanced-mode">
-              <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
-              Advanced mode
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-          {editorMode === 'guided' && (
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showAllProperties}
-                  onChange={(event) => setShowAllProperties(event.target.checked)}
-                  inputProps={{ 'aria-label': 'show-all-properties' }}
+      <Stack spacing={2.5}>
+        <Box
+          sx={{
+            borderRadius: 4,
+            p: { xs: 2.5, md: 3.5 },
+            background:
+              'linear-gradient(135deg, rgba(17,24,39,0.96) 0%, rgba(28,47,78,0.94) 55%, rgba(106,61,43,0.88) 100%)',
+            color: '#f7f9fc',
+            boxShadow: '0 24px 70px rgba(13, 25, 44, 0.22)',
+          }}
+        >
+          <Stack spacing={2}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'flex-start', md: 'center' }}
+              justifyContent="space-between"
+            >
+              <Box>
+                <Typography variant="overline" sx={{ letterSpacing: 1.6, opacity: 0.8 }}>
+                  StyleAgent
+                </Typography>
+                <Typography variant="h3" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
+                  Create a look step by step
+                </Typography>
+                <Typography variant="body1" sx={{ mt: 1, maxWidth: 720, color: 'rgba(247,249,252,0.82)' }}>
+                  Start with a description, refine the look with guided controls, then save and export to Capture One.
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                <Chip
+                  label={loading ? 'Checking backend' : error ? 'Backend offline' : `Backend ${data?.status ?? 'ok'}`}
+                  color={error ? 'error' : 'success'}
+                  variant="filled"
                 />
-              }
-              label={
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <VisibilityIcon fontSize="small" />
-                  Show all properties
-                </span>
-              }
-            />
-          )}
-        </Stack>
+                <Chip
+                  label={journeyStartMode === 'chat' ? 'AI conversation' : journeyStartMode === 'advanced' ? 'Advanced start' : 'AI generator'}
+                  sx={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff' }}
+                />
+                {aiMeta ? (
+                  <Chip
+                    label={`${aiMeta.provider} / ${aiMeta.model}`}
+                    sx={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff' }}
+                  />
+                ) : null}
+              </Stack>
+            </Stack>
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 1 }}>
-          <ToggleButtonGroup
-            color="primary"
-            value={executionMode}
-            exclusive
-            onChange={(_, next: RunnerExecutionMode | null) => {
-              if (next) {
-                setExecutionMode(next)
-              }
-            }}
-            aria-label="execution-mode"
-            size="small"
-          >
-            <ToggleButton value="api" aria-label="execution-api">
-              <DnsIcon fontSize="small" sx={{ mr: 0.75 }} />
-              Backend compile
-            </ToggleButton>
-            <ToggleButton value="host" aria-label="execution-host">
-              <LaptopMacIcon fontSize="small" sx={{ mr: 0.75 }} />
-              Runner host (Capture One)
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Stack>
+            <Stepper activeStep={journeyStepIndex} alternativeLabel sx={{ '& .MuiStepLabel-label': { color: '#f7f9fc' } }}>
+              {JOURNEY_STEPS.map((step) => (
+                <Step key={step.key}>
+                  <StepLabel>{step.label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Stack>
+        </Box>
 
-        {editorMode === 'guided' ? (
-          <StyleSpecControls
-            spec={styleSpec}
-            onChange={updateStyleSpecFromGuided}
-            showAllProperties={showAllProperties}
-          />
-        ) : (
-          <>
-            {jsonError && (
-              <Alert severity="warning" sx={{ mt: 1.5 }}>
-                JSON contains errors. Fix it before creating a version.
-              </Alert>
+        <section className="flow-card">
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                1. Choose how you want to start
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
+                Pick one guided path. You can still switch to advanced controls later.
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 1.5,
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+              }}
+            >
+              {[
+                {
+                  mode: 'generator' as const,
+                  title: 'Describe the look',
+                  copy: 'Write one prompt and generate a strong first draft fast.',
+                  icon: <AutoFixHighIcon />,
+                },
+                {
+                  mode: 'chat' as const,
+                  title: 'Start a conversation',
+                  copy: 'Refine the look with guided back-and-forth, like a creative assistant.',
+                  icon: <ChatIcon />,
+                },
+                {
+                  mode: 'advanced' as const,
+                  title: 'Open advanced editor',
+                  copy: 'Jump straight into detailed controls and raw style editing.',
+                  icon: <DataObjectIcon />,
+                },
+              ].map((option) => {
+                const selected = journeyStartMode === option.mode
+                return (
+                  <Card
+                    key={option.mode}
+                    sx={{
+                      borderRadius: 3,
+                      border: selected ? '2px solid #1f7aec' : '1px solid #d5d9e0',
+                      backgroundColor: selected ? '#eef6ff' : '#fff',
+                    }}
+                  >
+                    <CardActionArea onClick={() => selectJourneyStart(option.mode)} sx={{ height: '100%' }}>
+                      <CardContent>
+                        <Stack spacing={1.25}>
+                          <Box sx={{ color: selected ? '#1f5fbf' : '#415066' }}>{option.icon}</Box>
+                          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                            {option.title}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#415066' }}>
+                            {option.copy}
+                          </Typography>
+                          {selected ? <Chip size="small" color="primary" label="Recommended path selected" /> : null}
+                        </Stack>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                )
+              })}
+            </Box>
+          </Stack>
+        </section>
+
+        <section className="flow-card">
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                2. Create your first look
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
+                Focus on the creative direction first. Once the look feels right, you can fine-tune it below.
+              </Typography>
+            </Box>
+
+            {journeyStartMode !== 'advanced' ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 0.5 }}>
+                <ToggleButtonGroup
+                  color="primary"
+                  value={aiMode}
+                  exclusive
+                  onChange={(_, next: AIMode | null) => {
+                    if (next) {
+                      setAiMode(next)
+                    }
+                  }}
+                  aria-label="ai-mode"
+                  size="small"
+                >
+                  <ToggleButton value="generator" aria-label="ai-mode-generator">
+                    <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    AI Generator
+                  </ToggleButton>
+                  <ToggleButton value="chat" aria-label="ai-mode-chat">
+                    <ChatIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    AI Conversation
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Stack>
+            ) : null}
+
+            {journeyStartMode === 'advanced' || aiMode === 'generator' ? (
+              <AIGeneratorPanel
+                prompt={aiPrompt}
+                intents={aiIntents}
+                onPromptChange={setAiPrompt}
+                onIntentsChange={setAiIntents}
+                onPreview={() => {
+                  void handlePreviewAIPrompt()
+                }}
+                onGenerate={() => {
+                  void handleGenerateStyleSpec()
+                }}
+                onGenerateAndSave={() => {
+                  void handleGenerateAndSaveStyleSpec()
+                }}
+                previewing={isLoading('ai_preview')}
+                generating={isLoading('ai')}
+                generatingAndSaving={isLoading('ai_save')}
+                cooldownSeconds={aiCooldownSeconds}
+                meta={aiMeta}
+                preview={aiPromptPreview}
+              />
+            ) : (
+              <AIChatPanel
+                sessionId={aiChatSessionId}
+                turns={aiChatTurns}
+                message={aiChatMessage}
+                autoApply={aiChatAutoApply}
+                loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
+                applyingTurnId={aiChatApplyingTurnId}
+                savingPreset={isLoading('save_preset')}
+                onMessageChange={setAiChatMessage}
+                onAutoApplyChange={setAiChatAutoApply}
+                onSuggestionSelect={setAiChatMessage}
+                onSavePreset={() => {
+                  void handleSaveCurrentPreset()
+                }}
+                onSend={() => {
+                  void handleSendAIChatTurn()
+                }}
+                onApplyTurn={(turnId) => {
+                  void handleApplyAIChatTurn(turnId)
+                }}
+                onRevertTurn={(turnId) => {
+                  handleRevertAIChatTurnLocal(turnId)
+                }}
+                onResetSession={resetAIChatSession}
+              />
             )}
-            <JsonEditor value={styleSpecJson} onChange={updateStyleSpecJson} hasError={jsonError} />
-          </>
-        )}
+          </Stack>
+        </section>
 
-        <div className="flow-actions">
-          <button type="button" onClick={handleCreateStyle} disabled={activeAction !== null || !styleName.trim()}>
-            {isLoading('style') ? 'Creating style...' : '1. Create Style'}
-          </button>
-          <button type="button" onClick={handleCreateVersion} disabled={activeAction !== null || !createdStyle}>
-            {isLoading('version') ? 'Creating version...' : '2. Create Version'}
-          </button>
-          <button type="button" onClick={handleCompile} disabled={activeAction !== null || !createdVersion}>
-            {isLoading('compile')
-              ? executionMode === 'host'
-                ? 'Queueing runner job...'
-                : 'Compiling...'
-              : executionMode === 'host'
-                ? '3. Queue Host Job'
-                : '3. Compile'}
-          </button>
-          <button
-            type="button"
-            onClick={handleCompileAndDownload}
-            disabled={activeAction !== null || !createdVersion || executionMode !== 'api'}
-          >
-            {isLoading('compile_download') ? 'Compiling and downloading...' : '3b. Compile + Download'}
-          </button>
-          <button type="button" onClick={handleRefreshRunnerJob} disabled={activeAction !== null || !runnerJobId}>
-            {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Auto-tracking active' : 'Check Runner Job'}
-          </button>
-          <button type="button" onClick={handleDownloadArtifact} disabled={activeAction !== null || !compileResult}>
-            {isLoading('download') ? 'Downloading...' : '4. Download Latest'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!createdStyle) {
-                return
-              }
-              void refreshArtifactHistory(createdStyle.style_id)
-            }}
-            disabled={activeAction !== null || !createdStyle}
-          >
-            {isLoading('history') ? 'Refreshing...' : 'Refresh History'}
-          </button>
-        </div>
+        <section className="flow-card">
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                3. Refine the look
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
+                Use guided controls first. Open advanced mode only when you need raw StyleSpec editing.
+              </Typography>
+            </Box>
 
-        {flowError && <ErrorBanner error={flowError} />}
-        {hostErrorCode && (
+            <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+              <TextField
+                label="Preset name"
+                value={styleName}
+                onChange={(event) => updateStyleSpecName(event.target.value)}
+                placeholder="Tokyo Night Portrait"
+              />
+              <TextField
+                label="Version"
+                value={version}
+                onChange={(event) => setVersion(event.target.value)}
+                placeholder="v1"
+              />
+            </Box>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mt: 0.5 }}>
+              <ToggleButtonGroup
+                color="primary"
+                value={editorMode}
+                exclusive
+                onChange={(_, next: EditorMode | null) => {
+                  if (next) {
+                    setEditorMode(next)
+                  }
+                }}
+                aria-label="editor-mode"
+                size="small"
+              >
+                <ToggleButton value="guided" aria-label="guided-mode">
+                  <TuneIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Guided mode
+                </ToggleButton>
+                <ToggleButton value="advanced" aria-label="advanced-mode">
+                  <DataObjectIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Advanced mode
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              {editorMode === 'guided' ? (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showAllProperties}
+                      onChange={(event) => setShowAllProperties(event.target.checked)}
+                      inputProps={{ 'aria-label': 'show-all-properties' }}
+                    />
+                  }
+                  label={
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <VisibilityIcon fontSize="small" />
+                      Show all properties
+                    </span>
+                  }
+                />
+              ) : null}
+            </Stack>
+
+            {editorMode === 'guided' ? (
+              <StyleSpecControls
+                spec={styleSpec}
+                onChange={updateStyleSpecFromGuided}
+                showAllProperties={showAllProperties}
+              />
+            ) : (
+              <>
+                {jsonError ? (
+                  <Alert severity="warning" sx={{ mt: 1.5 }}>
+                    JSON contains errors. Fix it before saving the preset.
+                  </Alert>
+                ) : null}
+                <JsonEditor value={styleSpecJson} onChange={updateStyleSpecJson} hasError={jsonError} />
+              </>
+            )}
+          </Stack>
+        </section>
+
+        <section className="flow-card">
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                4. Save and export
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#415066', mt: 0.75 }}>
+                Save the preset first, then choose whether to export a `.costyle` file or send it directly to Capture One.
+              </Typography>
+            </Box>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+              <ToggleButtonGroup
+                color="primary"
+                value={executionMode}
+                exclusive
+                onChange={(_, next: RunnerExecutionMode | null) => {
+                  if (next) {
+                    setExecutionMode(next)
+                  }
+                }}
+                aria-label="execution-mode"
+                size="small"
+              >
+                <ToggleButton value="api" aria-label="execution-api">
+                  <DnsIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Export file
+                </ToggleButton>
+                <ToggleButton value="host" aria-label="execution-host">
+                  <LaptopMacIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Send to Capture One
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 1.25,
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+              }}
+            >
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<RocketLaunchIcon />}
+                onClick={() => {
+                  void handleSaveCurrentPreset()
+                }}
+                disabled={activeAction !== null}
+              >
+                {isLoading('save_preset') ? 'Saving preset...' : 'Save preset'}
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="large"
+                startIcon={<DnsIcon />}
+                onClick={() => {
+                  void handleCompileAndDownload()
+                }}
+                disabled={activeAction !== null || !createdVersion || executionMode !== 'api'}
+              >
+                {isLoading('compile_download') ? 'Exporting...' : 'Export .costyle'}
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="large"
+                startIcon={<LaptopMacIcon />}
+                onClick={() => {
+                  void handleCompile()
+                }}
+                disabled={activeAction !== null || !createdVersion || executionMode !== 'host'}
+              >
+                {isLoading('compile') ? 'Sending...' : 'Send to Capture One'}
+              </Button>
+            </Box>
+
+            {runnerJobId ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <Chip label={`Runner job ${runnerJobId}`} />
+                <Chip label={runnerJobStatus ? `Status: ${runnerJobStatus}` : 'Status pending'} color="info" />
+                <Button
+                  variant="text"
+                  onClick={() => {
+                    void handleRefreshRunnerJob()
+                  }}
+                  disabled={activeAction !== null}
+                >
+                  {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Tracking job...' : 'Check sync status'}
+                </Button>
+              </Stack>
+            ) : null}
+
+            {compileResult ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <Chip label={`Artifact ${compileResult.artifact_id}`} color="success" />
+                <Button
+                  variant="text"
+                  onClick={() => {
+                    void handleDownloadArtifact()
+                  }}
+                  disabled={activeAction !== null}
+                >
+                  {isLoading('download') ? 'Downloading...' : 'Download latest export'}
+                </Button>
+              </Stack>
+            ) : null}
+          </Stack>
+        </section>
+
+        {flowError ? <ErrorBanner error={flowError} /> : null}
+
+        {hostErrorCode ? (
           <Alert
             severity="error"
             sx={{ mt: 1.5 }}
@@ -1106,49 +1372,131 @@ export function HomePage() {
               </pre>
             </Collapse>
           </Alert>
-        )}
+        ) : null}
 
-        <div className="flow-output">
-          <p>
-            <strong>Style ID:</strong> {createdStyle?.style_id ?? '-'}
-          </p>
-          <p>
-            <strong>Version:</strong> {createdVersion?.version ?? '-'}
-          </p>
-          <p>
-            <strong>Artifact ID:</strong> {compileResult?.artifact_id ?? '-'}
-          </p>
-          <p>
-            <strong>Runner Job:</strong> {runnerJobId ?? '-'}
-          </p>
-          <p>
-            <strong>Runner Status:</strong> {runnerJobStatus ?? '-'}
-          </p>
-          <p>
-            <strong>Host Imported Path:</strong> {hostImportedPath ?? '-'}
-          </p>
-          <p>
-            <strong>SHA256:</strong> {compileResult?.sha256 ?? '-'}
-          </p>
-        </div>
-      </section>
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <InsightsIcon fontSize="small" />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Manual pipeline and technical details
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <Typography variant="body2" sx={{ color: '#415066' }}>
+                This is the full low-level pipeline for testing and debugging. Most users should stay in the guided flow above.
+              </Typography>
 
-      <ArtifactHistory
-        artifacts={artifacts}
-        loading={isLoading('history')}
-        onDownload={(artifactId, filename) => {
-          void triggerDownload(artifactId, filename)
-        }}
-      />
+              <Box className="flow-actions">
+                <button type="button" onClick={handleCreateStyle} disabled={activeAction !== null || !styleName.trim()}>
+                  {isLoading('style') ? 'Creating style...' : '1. Create Style'}
+                </button>
+                <button type="button" onClick={handleCreateVersion} disabled={activeAction !== null || !createdStyle}>
+                  {isLoading('version') ? 'Creating version...' : '2. Create Version'}
+                </button>
+                <button type="button" onClick={handleCompile} disabled={activeAction !== null || !createdVersion}>
+                  {isLoading('compile')
+                    ? executionMode === 'host'
+                      ? 'Queueing runner job...'
+                      : 'Compiling...'
+                    : executionMode === 'host'
+                      ? '3. Queue Host Job'
+                      : '3. Compile'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCompileAndDownload}
+                  disabled={activeAction !== null || !createdVersion || executionMode !== 'api'}
+                >
+                  {isLoading('compile_download') ? 'Compiling and downloading...' : '3b. Compile + Download'}
+                </button>
+                <button type="button" onClick={handleRefreshRunnerJob} disabled={activeAction !== null || !runnerJobId}>
+                  {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Auto-tracking active' : 'Check Runner Job'}
+                </button>
+                <button type="button" onClick={handleDownloadArtifact} disabled={activeAction !== null || !compileResult}>
+                  {isLoading('download') ? 'Downloading...' : '4. Download Latest'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!createdStyle) {
+                      return
+                    }
+                    void refreshArtifactHistory(createdStyle.style_id)
+                  }}
+                  disabled={activeAction !== null || !createdStyle}
+                >
+                  {isLoading('history') ? 'Refreshing...' : 'Refresh History'}
+                </button>
+              </Box>
 
-      <AIGenerationHistory
-        records={aiHistory}
-        loading={aiHistoryLoading}
-        onRefresh={() => {
-          void refreshAIGenerationHistory()
-        }}
-        onUsePreset={handleUsePresetFromHistory}
-      />
+              <Box className="flow-output">
+                <p>
+                  <strong>Style ID:</strong> {createdStyle?.style_id ?? '-'}
+                </p>
+                <p>
+                  <strong>Version:</strong> {createdVersion?.version ?? '-'}
+                </p>
+                <p>
+                  <strong>Artifact ID:</strong> {compileResult?.artifact_id ?? '-'}
+                </p>
+                <p>
+                  <strong>Runner Job:</strong> {runnerJobId ?? '-'}
+                </p>
+                <p>
+                  <strong>Runner Status:</strong> {runnerJobStatus ?? '-'}
+                </p>
+                <p>
+                  <strong>Host Imported Path:</strong> {hostImportedPath ?? '-'}
+                </p>
+                <p>
+                  <strong>SHA256:</strong> {compileResult?.sha256 ?? '-'}
+                </p>
+              </Box>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <HistoryIcon fontSize="small" />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                History and previous exports
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <ArtifactHistory
+                artifacts={artifacts}
+                loading={isLoading('history')}
+                onDownload={(artifactId, filename) => {
+                  void triggerDownload(artifactId, filename)
+                }}
+              />
+
+              <AIGenerationHistory
+                records={aiHistory}
+                loading={aiHistoryLoading}
+                onRefresh={() => {
+                  void refreshAIGenerationHistory()
+                }}
+                onUsePreset={handleUsePresetFromHistory}
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        <StatusCard
+          title="API Health"
+          loading={loading}
+          status={data?.status ?? null}
+          error={error}
+        />
+      </Stack>
     </main>
   )
 }
