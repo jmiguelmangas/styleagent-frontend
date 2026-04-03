@@ -128,6 +128,7 @@ describe('App integration', { timeout: 15_000 }, () => {
   })
 
   it('previews the exact AI prompt and selected examples', async () => {
+    let previewRequestBody: Record<string, unknown> | null = null
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string | URL, init?: RequestInit) => {
@@ -152,6 +153,7 @@ describe('App integration', { timeout: 15_000 }, () => {
           return new Response(JSON.stringify([]), { status: 200 })
         }
         if (url.endsWith('/ai/debug/prompt-preview') && init?.method === 'POST') {
+          previewRequestBody = JSON.parse(String(init.body))
           return new Response(
             JSON.stringify({
               provider: 'ollama',
@@ -179,12 +181,95 @@ describe('App integration', { timeout: 15_000 }, () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'tokyo night cinematic')
+    await user.click(screen.getByRole('button', { name: 'intensity-bold' }))
     await user.click(screen.getByRole('button', { name: 'Preview Prompt' }))
 
     expect(await screen.findByText(/Prompt preview ready with/i)).toBeInTheDocument()
     expect(await screen.findByText('Fujicolor Everyday')).toBeInTheDocument()
+    expect(previewRequestBody).not.toBeNull()
+    if (!previewRequestBody) {
+      throw new Error('Expected preview request body to be captured')
+    }
+    const previewConstraints = (previewRequestBody as Record<string, unknown>)['constraints']
+    expect(previewConstraints).toEqual({ intensity: 'bold' })
     await user.click(screen.getByRole('button', { name: 'Show full prompt' }))
     expect(await screen.findByText(/SYSTEM: build a cinematic preset/)).toBeInTheDocument()
+  })
+
+  it('sends selected intensity when generating a style spec', async () => {
+    let generateRequestBody: Record<string, unknown> | null = null
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input)
+
+        if (url.endsWith('/ai/health')) {
+          return new Response(
+            JSON.stringify({
+              status: 'available',
+              available: true,
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              message: 'Ollama is reachable and model llama3.1:8b is installed.',
+            }),
+            { status: 200 },
+          )
+        }
+        if (url.endsWith('/health')) {
+          return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+        }
+        if (url.includes('/ai/generations')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
+        if (url.endsWith('/ai/generate-style-spec') && init?.method === 'POST') {
+          generateRequestBody = JSON.parse(String(init.body))
+          return new Response(
+            JSON.stringify({
+              style_spec: {
+                name: 'AI Cinematic Bold',
+                intent: ['cinematic', 'portrait'],
+                captureone: {
+                  keys: {
+                    Exposure: 0.1,
+                    Contrast: 14,
+                  },
+                },
+                safe: {
+                  remove_lens_light_falloff: true,
+                  remove_white_balance: true,
+                  remove_exposure: false,
+                },
+              },
+              rationale: 'Generated from prompt.',
+              warnings: [],
+              provider: 'ollama',
+              model: 'llama3.1:8b',
+              generation_ms: 51,
+              fallback_used: false,
+            }),
+            { status: 200 },
+          )
+        }
+
+        return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+      }),
+    )
+
+    render(<App />)
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Describe the look/i }))
+    await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'cinematic portrait')
+    await user.click(screen.getByRole('button', { name: 'intensity-subtle' }))
+    await user.click(screen.getByRole('button', { name: 'Generate StyleSpec' }))
+
+    expect(await screen.findByText(/Latency:\s*51ms/)).toBeInTheDocument()
+    expect(generateRequestBody).not.toBeNull()
+    if (!generateRequestBody) {
+      throw new Error('Expected generate request body to be captured')
+    }
+    const generateConstraints = (generateRequestBody as Record<string, unknown>)['constraints']
+    expect(generateConstraints).toEqual({ intensity: 'subtle' })
   })
 
   it('generates and saves style/version in one action', async () => {

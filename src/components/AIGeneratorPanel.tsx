@@ -12,13 +12,15 @@ import {
   Button,
   Chip,
   Collapse,
+  ToggleButton,
+  ToggleButtonGroup,
   Stack,
   TextField,
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
 
-import type { AIPromptPreviewResponse } from '../api/types'
+import type { AIPresetIntensity, AIPromptPreviewResponse } from '../api/types'
 
 type AIGenerationMeta = {
   provider: string
@@ -32,8 +34,10 @@ type AIGenerationMeta = {
 type AIGeneratorPanelProps = {
   prompt: string
   intents: string[]
+  intensity: AIPresetIntensity
   onPromptChange: (next: string) => void
   onIntentsChange: (next: string[]) => void
+  onIntensityChange: (next: AIPresetIntensity) => void
   onPreview: () => void
   onGenerate: () => void
   onGenerateAndSave: () => void
@@ -59,8 +63,10 @@ const INTENT_SUGGESTIONS = [
 export function AIGeneratorPanel({
   prompt,
   intents,
+  intensity,
   onPromptChange,
   onIntentsChange,
+  onIntensityChange,
   onPreview,
   onGenerate,
   onGenerateAndSave,
@@ -162,6 +168,50 @@ export function AIGeneratorPanel({
             />
           )}
         />
+      </Box>
+
+      <Box sx={{ mt: 1.5 }}>
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', mb: 0.75, color: 'rgba(226, 232, 240, 0.78)', fontWeight: 600 }}
+        >
+          Intensity
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          value={intensity}
+          onChange={(_, next: AIPresetIntensity | null) => {
+            if (next) {
+              onIntensityChange(next)
+            }
+          }}
+          size="small"
+          aria-label="preset-intensity"
+          sx={{
+            '& .MuiToggleButton-root': {
+              borderColor: 'rgba(255,255,255,0.12)',
+              color: 'text.secondary',
+              px: 1.6,
+            },
+            '& .Mui-selected': {
+              backgroundColor: 'rgba(120, 157, 255, 0.16)',
+              color: 'primary.light',
+            },
+          }}
+        >
+          <ToggleButton value="subtle" aria-label="intensity-subtle">
+            Subtle
+          </ToggleButton>
+          <ToggleButton value="balanced" aria-label="intensity-balanced">
+            Balanced
+          </ToggleButton>
+          <ToggleButton value="bold" aria-label="intensity-bold">
+            Bold
+          </ToggleButton>
+        </ToggleButtonGroup>
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.75, color: 'text.secondary' }}>
+          Controls how strongly the AI mixes creative profiles into the preset.
+        </Typography>
       </Box>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ mt: 1.5 }}>
