@@ -311,6 +311,9 @@ test('runs the wizard flow end to end in generator mode', async ({ page }) => {
 
   await page.getByRole('button', { name: /Describe the look/i }).click()
   await expect(page.getByText('Create your first look')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Balanced' })).toBeVisible()
+  await page.getByRole('button', { name: 'Bold' }).click()
+  await expect(page.getByRole('button', { name: 'Bold' })).toHaveAttribute('aria-pressed', 'true')
 
   await page.getByRole('textbox', { name: 'Prompt' }).fill('cinematic warm look')
   await page.getByRole('button', { name: 'Generate StyleSpec' }).click()

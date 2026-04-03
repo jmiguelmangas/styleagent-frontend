@@ -57,6 +57,7 @@ import {
 import type {
   AIChatTurn,
   AIGenerationRecord,
+  AIPresetIntensity,
   AIPromptPreviewResponse,
   ApiError,
   Artifact,
@@ -161,6 +162,7 @@ export function HomePage() {
   const [version, setVersion] = useState('v1')
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiIntents, setAiIntents] = useState<string[]>([])
+  const [aiIntensity, setAiIntensity] = useState<AIPresetIntensity>('balanced')
   const [aiRateLimitUntilMs, setAiRateLimitUntilMs] = useState<number | null>(null)
   const [nowMs, setNowMs] = useState<number>(Date.now())
   const [aiMeta, setAiMeta] = useState<
@@ -390,6 +392,7 @@ export function HomePage() {
       const generated = await generateStyleSpec({
         prompt,
         intent: aiIntents.length > 0 ? aiIntents : undefined,
+        constraints: { intensity: aiIntensity },
         target: 'captureone',
       })
       applyGeneratedStyleSpec(generated.style_spec)
@@ -432,6 +435,7 @@ export function HomePage() {
       const preview = await previewAIPrompt({
         prompt,
         intent: aiIntents.length > 0 ? aiIntents : undefined,
+        constraints: { intensity: aiIntensity },
         target: 'captureone',
       })
       setAiPromptPreview(preview)
@@ -469,6 +473,7 @@ export function HomePage() {
       const generated = await generateStyleSpec({
         prompt,
         intent: aiIntents.length > 0 ? aiIntents : undefined,
+        constraints: { intensity: aiIntensity },
         target: 'captureone',
       })
 
@@ -1150,8 +1155,10 @@ export function HomePage() {
                 <AIGeneratorPanel
                   prompt={aiPrompt}
                   intents={aiIntents}
+                  intensity={aiIntensity}
                   onPromptChange={setAiPrompt}
                   onIntentsChange={setAiIntents}
+                  onIntensityChange={setAiIntensity}
                   onPreview={() => {
                     void handlePreviewAIPrompt()
                   }}

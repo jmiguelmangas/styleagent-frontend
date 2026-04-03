@@ -80,6 +80,8 @@ export interface GenerateStyleSpecRequest {
   target?: 'captureone'
 }
 
+export type AIPresetIntensity = 'subtle' | 'balanced' | 'bold'
+
 export interface GenerateStyleSpecResponse {
   style_spec: StyleSpec
   rationale?: string | null
