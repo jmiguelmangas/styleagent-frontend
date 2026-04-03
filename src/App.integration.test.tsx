@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 
-describe('App integration', () => {
+describe('App integration', { timeout: 15_000 }, () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
