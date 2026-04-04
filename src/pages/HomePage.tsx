@@ -50,6 +50,8 @@ import {
   generateStyleSpec,
   getAIPlannerOptions,
   getRunnerJob,
+  getStyleVersion,
+  listStyles,
   listAIGenerations,
   listStyleArtifacts,
   previewAIPrompt,
@@ -155,6 +157,29 @@ function mapHostErrorMessage(errorCode: HostErrorCode | undefined, fallback: str
   }
 }
 
+function slugifyStyleName(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function buildPresetSignature(
+  styleName: string,
+  version: string,
+  styleSpec: StyleSpec,
+  safePolicy: SafePolicy | undefined,
+): string {
+  return JSON.stringify({
+    styleName,
+    version,
+    styleSpec,
+    safePolicy: safePolicy ?? null,
+  })
+}
+
 export function HomePage() {
   const { data, error, loading } = useHealth()
   const { data: aiHealth, error: aiHealthError, loading: aiHealthLoading } = useAIHealth()
@@ -185,6 +210,7 @@ export function HomePage() {
 
   const [createdStyle, setCreatedStyle] = useState<Style | null>(null)
   const [createdVersion, setCreatedVersion] = useState<StyleVersion | null>(null)
+  const [savedPresetSignature, setSavedPresetSignature] = useState<string | null>(null)
   const [compileResult, setCompileResult] = useState<CompileResponse | null>(null)
   const [runnerJobId, setRunnerJobId] = useState<string | null>(null)
   const [runnerJobStatus, setRunnerJobStatus] = useState<string | null>(null)
@@ -223,6 +249,32 @@ export function HomePage() {
   const hasGeneratedLook = aiMeta !== null || hasConversationTurns
   const hasSavedPreset = createdVersion !== null
   const hasPreparedExport = compileResult !== null || runnerJobId !== null
+  const currentPresetSignature = useMemo(() => {
+    try {
+      const normalizedStyleName = styleName.trim() || styleSpec.name.trim()
+      const normalizedVersion = version.trim()
+      const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
+      const safePolicy = payload.safe
+
+      return {
+        normalizedVersion,
+        signature: buildPresetSignature(normalizedStyleName, normalizedVersion, payload, safePolicy),
+      }
+    } catch {
+      return null
+    }
+  }, [styleName, version, styleSpec, styleSpecJson, editorMode])
+  const isCurrentPresetSaved = useMemo(() => {
+    if (!createdStyle || !createdVersion || !savedPresetSignature || !currentPresetSignature) {
+      return false
+    }
+
+    return (
+      createdVersion.style_id === createdStyle.style_id &&
+      createdVersion.version === currentPresetSignature.normalizedVersion &&
+      currentPresetSignature.signature === savedPresetSignature
+    )
+  }, [createdStyle, createdVersion, savedPresetSignature, currentPresetSignature])
   const flowCardMinHeight = wizardStep === 0 ? 280 : 560
   const computedJourneyStepIndex = hasPreparedExport
     ? 3
@@ -298,6 +350,107 @@ export function HomePage() {
     setStyleSpec(nextSpec)
     setStyleSpecJson(JSON.stringify(nextSpec, null, 2))
     setJsonError(false)
+  }
+
+  function getCurrentPresetPayload() {
+    const normalizedStyleName = styleName.trim() || styleSpec.name.trim()
+    const normalizedVersion = version.trim()
+    const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
+    const safePolicy = payload.safe
+
+    return {
+      normalizedStyleName,
+      normalizedVersion,
+      payload,
+      safePolicy,
+      signature: buildPresetSignature(normalizedStyleName, normalizedVersion, payload, safePolicy),
+    }
+  }
+
+  function markPresetAsSaved(
+    style: Style,
+    savedVersion: StyleVersion,
+    signature: string,
+  ) {
+    setCreatedStyle(style)
+    setCreatedVersion(savedVersion)
+    setSavedPresetSignature(signature)
+  }
+
+  async function resolveStyleForSave(normalizedStyleName: string): Promise<Style> {
+    const desiredSlug = slugifyStyleName(normalizedStyleName)
+    if (createdStyle && createdStyle.slug === desiredSlug) {
+      return createdStyle
+    }
+
+    const existingStyles = await listStyles()
+    const matchingStyle =
+      existingStyles.find((style) => style.slug === desiredSlug) ??
+      existingStyles.find((style) => style.name.trim().toLowerCase() === normalizedStyleName.toLowerCase())
+
+    if (matchingStyle) {
+      setCreatedStyle(matchingStyle)
+      return matchingStyle
+    }
+
+    const created = await createStyle({ name: normalizedStyleName })
+    setCreatedStyle(created)
+    return created
+  }
+
+  async function ensureCurrentPresetSaved() {
+    const { normalizedStyleName, normalizedVersion, payload, safePolicy, signature } = getCurrentPresetPayload()
+
+    if (!normalizedStyleName) {
+      throw { message: 'Preset name is required before saving.', status: 400 } satisfies ApiError
+    }
+    if (!normalizedVersion) {
+      throw { message: 'Version is required before saving.', status: 400 } satisfies ApiError
+    }
+
+    const style = await resolveStyleForSave(normalizedStyleName)
+    if (
+      createdVersion &&
+      createdVersion.style_id === style.style_id &&
+      createdVersion.version === normalizedVersion &&
+      savedPresetSignature === signature
+    ) {
+      return { style, version: createdVersion, reused: true as const }
+    }
+
+    try {
+      const existingVersion = await getStyleVersion(style.style_id, normalizedVersion)
+      const existingSignature = buildPresetSignature(
+        normalizedStyleName,
+        normalizedVersion,
+        existingVersion.style_spec,
+        existingVersion.safe_policy,
+      )
+
+      if (existingSignature === signature) {
+        markPresetAsSaved(style, existingVersion, signature)
+        return { style, version: existingVersion, reused: true as const }
+      }
+
+      throw {
+        status: 409,
+        message:
+          'This version already exists with different content. Change the version before saving or exporting your latest edits.',
+      } satisfies ApiError
+    } catch (err) {
+      const apiError = toApiError(err)
+      if (apiError.status !== 404) {
+        throw apiError
+      }
+    }
+
+    const created = await createStyleVersion(style.style_id, {
+      version: normalizedVersion,
+      style_spec: payload,
+      safe_policy: safePolicy,
+    })
+    markPresetAsSaved(style, created, signature)
+    return { style, version: created, reused: false as const }
   }
 
   async function ensureAIChatSession(): Promise<string> {
@@ -530,15 +683,52 @@ export function HomePage() {
       await refreshAIGenerationHistory()
 
       const normalizedStyleName = generated.style_spec.name.trim()
-      const style = await createStyle({ name: normalizedStyleName })
-      setCreatedStyle(style)
+      const style = await resolveStyleForSave(normalizedStyleName)
+      const generatedSignature = buildPresetSignature(
+        normalizedStyleName,
+        normalizedVersion,
+        generated.style_spec,
+        generated.style_spec.safe,
+      )
+
+      try {
+        const existingVersion = await getStyleVersion(style.style_id, normalizedVersion)
+        const existingSignature = buildPresetSignature(
+          normalizedStyleName,
+          normalizedVersion,
+          existingVersion.style_spec,
+          existingVersion.safe_policy,
+        )
+
+        if (existingSignature === generatedSignature) {
+          markPresetAsSaved(style, existingVersion, generatedSignature)
+          await refreshArtifactHistory(style.style_id)
+          setWizardStep(3)
+          return
+        }
+
+        throw {
+          status: 409,
+          message:
+            'This preset version already exists with different content. Change the version and retry Generate + Save.',
+        } satisfies ApiError
+      } catch (err) {
+        const apiError = toApiError(err)
+        if (apiError.status !== 404) {
+          throw apiError
+        }
+      }
 
       const created = await createStyleVersion(style.style_id, {
         version: normalizedVersion,
         style_spec: generated.style_spec,
         safe_policy: generated.style_spec.safe,
       })
-      setCreatedVersion(created)
+      markPresetAsSaved(
+        style,
+        created,
+        generatedSignature,
+      )
 
       await refreshArtifactHistory(style.style_id)
       setWizardStep(3)
@@ -660,6 +850,7 @@ export function HomePage() {
     setActiveAction('style')
     setFlowError(null)
     setCreatedVersion(null)
+    setSavedPresetSignature(null)
     setCompileResult(null)
     setRunnerJobId(null)
     setRunnerJobStatus(null)
@@ -673,6 +864,7 @@ export function HomePage() {
       const style = await createStyle({ name: normalizedStyleName })
       setCreatedStyle(style)
       setCreatedVersion(null)
+      setSavedPresetSignature(null)
       setCompileResult(null)
       await refreshArtifactHistory(style.style_id)
     } catch (err) {
@@ -711,7 +903,11 @@ export function HomePage() {
         style_spec: payload,
         safe_policy: safePolicy,
       })
-      setCreatedVersion(created)
+      markPresetAsSaved(
+        createdStyle,
+        created,
+        buildPresetSignature(styleName.trim() || payload.name.trim(), normalizedVersion, payload, safePolicy),
+      )
     } catch (err) {
       if (err instanceof SyntaxError || err instanceof Error) {
         setJsonError(true)
@@ -725,21 +921,17 @@ export function HomePage() {
   }
 
   async function handleCompile() {
-    if (!createdStyle || !createdVersion) {
-      setFlowError({ message: 'Create style and version before compile.', status: 400 })
-      return
-    }
-
     setActiveAction('compile')
     setFlowError(null)
 
     try {
+      const { style, version: savedVersion } = await ensureCurrentPresetSaved()
       if (executionMode === 'host') {
         const createdJob = await createRunnerJob({
           job_type: 'compile_captureone',
           payload: {
-            style_id: createdStyle.style_id,
-            version: createdVersion.version,
+            style_id: style.style_id,
+            version: savedVersion.version,
             execution_mode: 'host',
           },
         })
@@ -753,7 +945,7 @@ export function HomePage() {
         return
       }
 
-      const compiled = await compileStyleVersion(createdStyle.style_id, createdVersion.version)
+      const compiled = await compileStyleVersion(style.style_id, savedVersion.version)
       setCompileResult(compiled)
       setRunnerJobId(null)
       setRunnerJobStatus(null)
@@ -761,7 +953,7 @@ export function HomePage() {
       setHostErrorCode(null)
       setHostErrorDetails(null)
       setShowHostErrorDetails(false)
-      await refreshArtifactHistory(createdStyle.style_id)
+      await refreshArtifactHistory(style.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
     } finally {
@@ -913,10 +1105,6 @@ export function HomePage() {
   }
 
   async function handleCompileAndDownload() {
-    if (!createdStyle || !createdVersion) {
-      setFlowError({ message: 'Create style and version before compile.', status: 400 })
-      return
-    }
     if (executionMode !== 'api') {
       setFlowError({
         message: 'Compile + Download is available only in Backend compile mode.',
@@ -929,10 +1117,11 @@ export function HomePage() {
     setFlowError(null)
 
     try {
-      const compiled = await compileStyleVersion(createdStyle.style_id, createdVersion.version)
+      const { style, version: savedVersion } = await ensureCurrentPresetSaved()
+      const compiled = await compileStyleVersion(style.style_id, savedVersion.version)
       setCompileResult(compiled)
       await downloadArtifactToFile(compiled.artifact_id, downloadFilename)
-      await refreshArtifactHistory(createdStyle.style_id)
+      await refreshArtifactHistory(style.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
     } finally {
@@ -963,36 +1152,12 @@ export function HomePage() {
   }
 
   async function handleSaveCurrentPreset() {
-    const normalizedStyleName = styleName.trim() || styleSpec.name
-    const normalizedVersion = version.trim()
-
-    if (!normalizedStyleName) {
-      setFlowError({ message: 'Preset name is required before saving.', status: 400 })
-      return
-    }
-    if (!normalizedVersion) {
-      setFlowError({ message: 'Version is required before saving.', status: 400 })
-      return
-    }
-
     setActiveAction('save_preset')
     setFlowError(null)
 
     try {
-      const payload = editorMode === 'advanced' ? parseStyleSpecInput(styleSpecJson) : styleSpec
-      let nextStyle = createdStyle
-      if (!nextStyle) {
-        nextStyle = await createStyle({ name: normalizedStyleName })
-        setCreatedStyle(nextStyle)
-      }
-
-      const created = await createStyleVersion(nextStyle.style_id, {
-        version: normalizedVersion,
-        style_spec: payload,
-        safe_policy: payload.safe,
-      })
-      setCreatedVersion(created)
-      await refreshArtifactHistory(nextStyle.style_id)
+      const { style } = await ensureCurrentPresetSaved()
+      await refreshArtifactHistory(style.style_id)
       setWizardStep(3)
     } catch (err) {
       const apiError = toApiError(err)
@@ -1483,9 +1648,9 @@ export function HomePage() {
                   onClick={() => {
                     void handleSaveCurrentPreset()
                   }}
-                  disabled={activeAction !== null}
+                  disabled={activeAction !== null || isCurrentPresetSaved}
                 >
-                  {isLoading('save_preset') ? 'Saving preset...' : 'Save preset'}
+                  {isLoading('save_preset') ? 'Saving preset...' : isCurrentPresetSaved ? 'Preset saved' : 'Save preset'}
                 </Button>
 
                 <Button
@@ -1516,6 +1681,13 @@ export function HomePage() {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 {createdStyle ? <Chip label={`Style ID: ${createdStyle.style_id}`} /> : null}
                 {createdVersion ? <Chip label={`Version: ${createdVersion.version}`} color="primary" /> : null}
+                {createdVersion ? (
+                  <Chip
+                    label={isCurrentPresetSaved ? 'Current edits saved' : 'Unsaved edits'}
+                    color={isCurrentPresetSaved ? 'success' : 'warning'}
+                    variant={isCurrentPresetSaved ? 'filled' : 'outlined'}
+                  />
+                ) : null}
                 {compileResult ? <Chip label={`Artifact ID: ${compileResult.artifact_id}`} color="success" /> : null}
               </Stack>
 

@@ -273,9 +273,7 @@ describe('App integration', { timeout: 15_000 }, () => {
   })
 
   it('generates and saves style/version in one action', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: string | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
         const url = String(input)
 
         if (url.endsWith('/ai/health')) {
@@ -325,6 +323,9 @@ describe('App integration', { timeout: 15_000 }, () => {
         if (url.includes('/ai/generations')) {
           return new Response(JSON.stringify([]), { status: 200 })
         }
+        if (url.endsWith('/styles') && (!init?.method || init.method === 'GET')) {
+          return new Response(JSON.stringify([]), { status: 200 })
+        }
 
         if (url.endsWith('/styles') && init?.method === 'POST') {
           return new Response(
@@ -369,8 +370,8 @@ describe('App integration', { timeout: 15_000 }, () => {
         }
 
         return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
-      }),
-    )
+      })
+    vi.stubGlobal('fetch', fetchMock)
 
     render(<App />)
 
@@ -378,8 +379,12 @@ describe('App integration', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'cinematic style')
     await user.click(screen.getByRole('button', { name: 'Generate + Save Version' }))
-    expect(await screen.findByText('Style ID: style_ai_1')).toBeInTheDocument()
-    expect(await screen.findByText('Version: v1')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/styles\/style_ai_1\/versions$/),
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
   })
 
   it('compiles and downloads from one action in api mode', async () => {
@@ -400,6 +405,9 @@ describe('App integration', { timeout: 15_000 }, () => {
       }
       if (url.endsWith('/health')) {
         return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+      }
+      if (url.endsWith('/styles') && (!init?.method || init.method === 'GET')) {
+        return new Response(JSON.stringify([]), { status: 200 })
       }
       if (url.endsWith('/styles') && init?.method === 'POST') {
         return new Response(
@@ -465,6 +473,12 @@ describe('App integration', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Save preset' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/styles\/style_dl_1\/versions$/),
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
     await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
 
     await waitFor(() => {
@@ -473,6 +487,136 @@ describe('App integration', { timeout: 15_000 }, () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/artifacts\/artifact_dl_1$/),
       expect.any(Object),
+    )
+  })
+
+  it('reuses an existing matching preset version in save and export', async () => {
+    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url.endsWith('/ai/health')) {
+        return new Response(
+          JSON.stringify({
+            status: 'available',
+            available: true,
+            provider: 'ollama',
+            model: 'llama3.1:8b',
+            message: 'Ollama is reachable and model llama3.1:8b is installed.',
+          }),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/health')) {
+        return new Response(JSON.stringify({ status: 'ok' }), { status: 200 })
+      }
+      if (url.includes('/ai/generations')) {
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
+      if (url.endsWith('/styles') && (!init?.method || init.method === 'GET')) {
+        return new Response(
+          JSON.stringify([
+            {
+              style_id: 'style_existing',
+              name: 'Nolan Warm',
+              slug: 'nolan-warm',
+              created_at: '2026-03-01T00:00:00Z',
+            },
+          ]),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/styles/style_existing/versions/v1') && init?.method !== 'POST') {
+        return new Response(
+          JSON.stringify({
+            style_id: 'style_existing',
+            version: 'v1',
+            style_spec: {
+              name: 'Nolan Warm',
+              intent: ['cinematic', 'warm'],
+              captureone: {
+                keys: {
+                  Exposure: 0.3,
+                  Contrast: 9,
+                  Saturation: 6,
+                  Clarity: 8,
+                  WhiteBalanceTemperature: 5600,
+                  WhiteBalanceTint: 2,
+                  Highlights: -8,
+                  Shadows: 10,
+                  ColorBalanceRed: 3,
+                  ColorBalanceGreen: 0,
+                  ColorBalanceBlue: -2,
+                  ToneCurve: 'Film Standard',
+                },
+                notes: 'Balanced skin tones with gentle contrast.',
+              },
+              safe: {
+                remove_lens_light_falloff: true,
+                remove_white_balance: true,
+                remove_exposure: false,
+              },
+            },
+            safe_policy: {
+              remove_lens_light_falloff: true,
+              remove_white_balance: true,
+              remove_exposure: false,
+            },
+            created_at: '2026-03-01T00:00:05Z',
+          }),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/styles/style_existing/versions/v1/compile?target=captureone') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            artifact_id: 'artifact_existing',
+            sha256: 'reuse123',
+            download_url: 'http://localhost:8000/artifacts/artifact_existing',
+          }),
+          { status: 200 },
+        )
+      }
+      if (url.endsWith('/artifacts/artifact_existing')) {
+        return new Response(new Blob(['costyle-bytes']), { status: 200 })
+      }
+      if (url.endsWith('/styles/style_existing/artifacts')) {
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
+
+      return new Response(JSON.stringify({ message: 'Not mocked' }), { status: 404 })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    render(<App />)
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Describe the look/i }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Save preset' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/styles\/style_existing\/versions\/v1$/),
+        expect.anything(),
+      )
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Artifact ID: artifact_existing')).toBeInTheDocument()
+    })
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringMatching(/\/styles$/),
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringMatching(/\/styles\/style_existing\/versions$/),
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 

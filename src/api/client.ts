@@ -12,6 +12,7 @@ import {
   parseHealthResponse,
   parseRunnerJob,
   parseStyle,
+  parseStyles,
   parseStyleVersion,
 } from './normalize'
 import type {
@@ -184,6 +185,10 @@ export async function createStyle(payload: StyleCreate): Promise<Style> {
   )
 }
 
+export async function listStyles(): Promise<Style[]> {
+  return parseStyles(await request('/styles'))
+}
+
 export async function createStyleVersion(
   styleId: string,
   payload: StyleVersionCreate,
@@ -194,6 +199,10 @@ export async function createStyleVersion(
       body: JSON.stringify(payload),
     }),
   )
+}
+
+export async function getStyleVersion(styleId: string, version: string): Promise<StyleVersion> {
+  return parseStyleVersion(await request(`/styles/${styleId}/versions/${version}`))
 }
 
 export async function compileStyleVersion(
