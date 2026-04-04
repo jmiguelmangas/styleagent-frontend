@@ -698,7 +698,9 @@ describe('App integration', { timeout: 15_000 }, () => {
         ) {
           const turnId = url.endsWith('/turn_2/apply') ? 'turn_2' : 'turn_1'
           const userMessage =
-            turnId === 'turn_2' ? 'Keep the Cinematic Portrait direction.' : 'add contrast'
+            turnId === 'turn_2'
+              ? 'Cool the shadows while protecting skin tones and keeping the look cohesive.'
+              : 'add contrast'
           return new Response(
             JSON.stringify({
               session: {
@@ -758,10 +760,10 @@ describe('App integration', { timeout: 15_000 }, () => {
       family_id: null,
       intensity: 'bold',
     })
-    await user.click(screen.getByRole('button', { name: 'Stay in Cinematic Portrait' }))
+    await user.click(screen.getByRole('button', { name: 'Cooler shadows' }))
     await waitFor(() => {
       expect(chatTurnRequestBodies[1]).toEqual({
-        message: 'Keep the Cinematic Portrait direction.',
+        message: 'Cool the shadows while protecting skin tones and keeping the look cohesive.',
         auto_apply: false,
         family_id: 'cinematic_portrait',
         intensity: 'bold',
@@ -772,6 +774,8 @@ describe('App integration', { timeout: 15_000 }, () => {
     await waitFor(() => {
       expect(screen.getAllByRole('button', { name: 'Apply turn' })).toHaveLength(1)
     })
-    expect(screen.getByText('Keep the Cinematic Portrait direction.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Cool the shadows while protecting skin tones and keeping the look cohesive.'),
+    ).toBeInTheDocument()
   })
 })

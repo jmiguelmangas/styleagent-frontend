@@ -234,7 +234,9 @@ function mockApi(page: Page) {
         turn: {
           turn_id: isSecondTurn ? 'turn_2' : 'turn_1',
           session_id: 'sess_1',
-          user_message: isSecondTurn ? 'Keep the Cinematic Portrait direction.' : 'add contrast',
+          user_message: isSecondTurn
+            ? 'Cool the shadows while protecting skin tones and keeping the look cohesive.'
+            : 'add contrast',
           assistant_message: 'I prepared updates.',
           proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
           warnings: [],
@@ -381,7 +383,7 @@ test('supports chat mode in the wizard and applies a turn', async ({ page }) => 
 
   await expect(page.getByText('Detected contrast goal.')).toBeVisible()
   await expect(page.getByText('Family: cinematic_portrait')).toBeVisible()
-  await page.getByRole('button', { name: 'Stay in Cinematic Portrait' }).click()
+  await page.getByRole('button', { name: 'Cooler shadows' }).click()
   await expect(page.getByText('Turns: 2')).toBeVisible()
   await page.getByRole('button', { name: 'Apply turn' }).nth(1).click()
   await expect(page.getByText('Applied')).toHaveCount(1)
