@@ -366,8 +366,6 @@ test('supports chat mode in the wizard and applies a turn', async ({ page }) => 
 
   await page.getByRole('button', { name: /Start a conversation/i }).click()
   await page.getByRole('button', { name: 'chat-intensity-bold' }).click()
-  await page.getByRole('combobox', { name: 'Creative family' }).click()
-  await page.getByRole('option', { name: 'cinematic_portrait' }).click()
   await page.getByRole('textbox', { name: 'Message to AI' }).fill('add contrast')
   await page.getByRole('button', { name: 'Send' }).click()
 
