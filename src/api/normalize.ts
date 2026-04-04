@@ -499,6 +499,13 @@ export function parseStyle(value: unknown): Style {
   return value
 }
 
+export function parseStyles(value: unknown): Style[] {
+  if (!Array.isArray(value) || !value.every(isStyle)) {
+    throw new Error('Invalid styles payload')
+  }
+  return value
+}
+
 export function parseStyleVersion(value: unknown): StyleVersion {
   if (!isStyleVersion(value)) {
     throw new Error('Invalid style version payload')

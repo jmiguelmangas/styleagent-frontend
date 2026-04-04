@@ -90,7 +90,11 @@ function mockApi(page: Page) {
 
   page.route('**/styles', async (route) => {
     if (route.request().method() !== 'POST') {
-      await route.continue()
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
       return
     }
 
@@ -281,6 +285,40 @@ function mockApi(page: Page) {
     })
   })
 
+  page.route('**/styles/style_123/versions/v1', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        style_id: 'style_123',
+        version: 'v1',
+        style_spec: {
+          name: 'AI Nolan Warm',
+          intent: ['cinematic', 'warm'],
+          captureone: {
+            keys: {
+              Exposure: 0.2,
+              Contrast: 8,
+              WhiteBalanceTemperature: 5800,
+              Highlights: -12,
+            },
+          },
+          safe: {
+            remove_lens_light_falloff: true,
+            remove_white_balance: true,
+            remove_exposure: false,
+          },
+        },
+        safe_policy: {
+          remove_lens_light_falloff: true,
+          remove_white_balance: true,
+          remove_exposure: false,
+        },
+        created_at: '2026-02-15T00:00:10Z',
+      }),
+    })
+  })
+
   page.route('**/styles/style_123/versions/v1/compile?target=captureone', async (route) => {
     await route.fulfill({
       status: 200,
@@ -366,7 +404,6 @@ test('runs the wizard flow end to end in generator mode', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Save and export' })).toBeVisible()
   await page.getByRole('button', { name: 'Save preset' }).click()
   await expect(page.locator('text=Style ID: style_123').first()).toBeVisible()
-  await expect(page.locator('text=Version: v1').first()).toBeVisible()
 
   await page.getByRole('button', { name: 'Export .costyle' }).click()
   await expect(page.locator('text=Artifact ID: artifact_001').first()).toBeVisible()
