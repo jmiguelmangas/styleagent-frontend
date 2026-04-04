@@ -330,6 +330,9 @@ function isAIChatTurn(value: unknown): value is AIChatTurn {
   ) {
     return false
   }
+  if (value.planner_trace !== undefined && value.planner_trace !== null && !isAIPlannerTrace(value.planner_trace)) {
+    return false
+  }
   return true
 }
 

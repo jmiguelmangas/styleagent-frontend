@@ -148,8 +148,25 @@ export function AIChatPanel({
                 {turn.guidance.detected_goals.map((goal) => (
                   <Chip key={goal} label={goal} size="small" variant="outlined" />
                 ))}
+                {turn.planner_trace?.family_id ? (
+                  <Chip label={`Family: ${turn.planner_trace.family_id}`} size="small" color="primary" variant="outlined" />
+                ) : null}
+                {turn.planner_trace?.intensity ? (
+                  <Chip label={`Intensity: ${turn.planner_trace.intensity}`} size="small" variant="outlined" />
+                ) : null}
+                {turn.planner_trace ? (
+                  <Chip label={`Mode: ${turn.planner_trace.mode}`} size="small" variant="outlined" />
+                ) : null}
                 {turn.applied && <Chip label="Applied" size="small" color="success" icon={<DoneIcon />} />}
               </Stack>
+
+              {turn.planner_trace?.refinement_ids?.length ? (
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+                  {turn.planner_trace.refinement_ids.map((refinementId) => (
+                    <Chip key={`${turn.turn_id}:${refinementId}`} label={refinementId} size="small" />
+                  ))}
+                </Stack>
+              ) : null}
 
               <Alert severity="info" sx={{ mb: 1 }}>
                 {turn.guidance.reasoning_summary}

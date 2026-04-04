@@ -165,6 +165,7 @@ export interface AIChatTurn {
   proposed_changes: AIParameterChange[]
   warnings: string[]
   guidance: AIConversationGuidance
+  planner_trace?: AIPlannerTrace | null
   applied: boolean
   created_at: string
 }
