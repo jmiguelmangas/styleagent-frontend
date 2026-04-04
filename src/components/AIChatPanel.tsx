@@ -19,6 +19,14 @@ import {
 
 import type { AIChatTurn, AIPresetIntensity } from '../api/types'
 
+function formatFamilyLabel(familyId: string): string {
+  return familyId
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 type AIChatPanelProps = {
   sessionId: string | null
   turns: AIChatTurn[]
@@ -64,6 +72,35 @@ export function AIChatPanel({
   onRevertTurn,
   onResetSession,
 }: AIChatPanelProps) {
+  const latestPlannerTrace = turns.at(-1)?.planner_trace
+  const activeFamilyId = familyId ?? latestPlannerTrace?.family_id ?? null
+  const quickActions = [
+    {
+      key: 'subtle',
+      label: 'Make it subtler',
+      onClick: () => {
+        onIntensityChange('subtle')
+        onSuggestionSelect('Make it subtler while keeping the current creative direction.')
+      },
+    },
+    {
+      key: 'balanced',
+      label: 'Reset to balanced',
+      onClick: () => {
+        onIntensityChange('balanced')
+        onSuggestionSelect('Bring it back to a balanced version of this look.')
+      },
+    },
+    {
+      key: 'bold',
+      label: 'Push it further',
+      onClick: () => {
+        onIntensityChange('bold')
+        onSuggestionSelect('Push the look further while keeping the same creative direction.')
+      },
+    },
+  ]
+
   return (
     <section className="history-card">
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
@@ -146,6 +183,48 @@ export function AIChatPanel({
           </ToggleButtonGroup>
         </Stack>
       </Stack>
+
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 1.25,
+          mb: 1.5,
+          backgroundColor: 'rgba(17, 24, 39, 0.72)',
+          borderColor: 'rgba(122, 162, 255, 0.18)',
+        }}
+      >
+        <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
+          Quick directions
+        </Typography>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: activeFamilyId ? 1 : 0 }}>
+          {quickActions.map((action) => (
+            <Chip
+              key={action.key}
+              label={action.label}
+              size="small"
+              clickable
+              variant="outlined"
+              onClick={action.onClick}
+            />
+          ))}
+          {activeFamilyId ? (
+            <Chip
+              label={`Stay in ${formatFamilyLabel(activeFamilyId)}`}
+              size="small"
+              clickable
+              color="primary"
+              variant="outlined"
+              onClick={() => {
+                onFamilyChange(activeFamilyId)
+                onSuggestionSelect(`Keep the ${formatFamilyLabel(activeFamilyId)} direction.`)
+              }}
+            />
+          ) : null}
+        </Stack>
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          Current direction: {activeFamilyId ? formatFamilyLabel(activeFamilyId) : 'Auto-detect family'} · {intensity}
+        </Typography>
+      </Paper>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1 }}>
         <TextField
