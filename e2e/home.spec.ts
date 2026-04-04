@@ -371,6 +371,10 @@ test('supports chat mode in the wizard and applies a turn', async ({ page }) => 
 
   await expect(page.getByText('Detected contrast goal.')).toBeVisible()
   await expect(page.getByText('Family: cinematic_portrait')).toBeVisible()
+  await page.getByRole('button', { name: 'Stay in Cinematic Portrait' }).click()
+  await expect(page.getByRole('textbox', { name: 'Message to AI' })).toHaveValue(
+    'Keep the Cinematic Portrait direction.',
+  )
   await page.getByRole('button', { name: 'Apply turn' }).click()
   await expect(page.getByRole('button', { name: 'Apply turn' })).toHaveCount(0)
 })

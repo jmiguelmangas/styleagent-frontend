@@ -730,8 +730,6 @@ describe('App integration', { timeout: 15_000 }, () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Start a conversation/i }))
     await user.click(screen.getByRole('button', { name: 'chat-intensity-bold' }))
-    await user.click(screen.getByRole('combobox', { name: 'Creative family' }))
-    await user.click(await screen.findByRole('option', { name: 'cinematic_portrait', hidden: true }))
     await user.type(screen.getByRole('textbox', { name: 'Message to AI' }), 'add contrast')
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
@@ -740,9 +738,13 @@ describe('App integration', { timeout: 15_000 }, () => {
     expect(chatTurnRequestBody).toEqual({
       message: 'add contrast',
       auto_apply: false,
-      family_id: 'cinematic_portrait',
+      family_id: null,
       intensity: 'bold',
     })
+    await user.click(screen.getByRole('button', { name: 'Stay in Cinematic Portrait' }))
+    expect(screen.getByRole('textbox', { name: 'Message to AI' })).toHaveValue(
+      'Keep the Cinematic Portrait direction.',
+    )
     await user.click(screen.getByRole('button', { name: 'Apply turn' }))
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Apply turn' })).not.toBeInTheDocument()
