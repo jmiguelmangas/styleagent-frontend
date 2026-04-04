@@ -99,6 +99,51 @@ export function AIChatPanel({
       },
     },
   ]
+  const creativeQuickActions = [
+    {
+      key: 'cinematic',
+      label: 'More cinematic',
+      onClick: () => {
+        onQuickSend(
+          'Make it more cinematic with stronger separation, softer highlight rolloff and a more intentional mood.',
+          intensity,
+          activeFamilyId,
+        )
+      },
+    },
+    {
+      key: 'filmic',
+      label: 'More filmic',
+      onClick: () => {
+        onQuickSend(
+          'Make it feel more filmic with gentler rolloff, organic color and less digital harshness.',
+          intensity,
+          activeFamilyId,
+        )
+      },
+    },
+    {
+      key: 'cooler_shadows',
+      label: 'Cooler shadows',
+      onClick: () => {
+        onQuickSend('Cool the shadows while protecting skin tones and keeping the look cohesive.', intensity, activeFamilyId)
+      },
+    },
+    {
+      key: 'warmer_highlights',
+      label: 'Warmer highlights',
+      onClick: () => {
+        onQuickSend('Warm the highlights while keeping contrast and skin tones under control.', intensity, activeFamilyId)
+      },
+    },
+    {
+      key: 'natural_skin',
+      label: 'Keep skin natural',
+      onClick: () => {
+        onQuickSend('Keep skin tones natural and avoid over-stylizing faces.', intensity, activeFamilyId)
+      },
+    },
+  ]
 
   return (
     <section className="history-card">
@@ -193,7 +238,7 @@ export function AIChatPanel({
         }}
       >
         <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
-          Quick directions
+          Intensity moves
         </Typography>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: activeFamilyId ? 1 : 0 }}>
           {quickActions.map((action) => (
@@ -216,6 +261,21 @@ export function AIChatPanel({
               onClick={() => onQuickSend(`Keep the ${formatFamilyLabel(activeFamilyId)} direction.`, intensity, activeFamilyId)}
             />
           ) : null}
+        </Stack>
+        <Typography variant="caption" sx={{ display: 'block', mb: 0.75, mt: 1.25, color: 'text.secondary', fontWeight: 700 }}>
+          Creative moves
+        </Typography>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+          {creativeQuickActions.map((action) => (
+            <Chip
+              key={action.key}
+              label={action.label}
+              size="small"
+              clickable
+              variant="outlined"
+              onClick={action.onClick}
+            />
+          ))}
         </Stack>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
           Current direction: {activeFamilyId ? formatFamilyLabel(activeFamilyId) : 'Auto-detect family'} · {intensity}
