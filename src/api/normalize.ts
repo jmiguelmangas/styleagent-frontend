@@ -8,6 +8,7 @@ import type {
   AIPromptPreviewExample,
   AIPromptPreviewResponse,
   AIGenerationRecord,
+  AIPlannerTrace,
   Artifact,
   CompileResponse,
   GenerateStyleSpecResponse,
@@ -125,6 +126,9 @@ function isGenerateStyleSpecResponse(value: unknown): value is GenerateStyleSpec
   if (value.fallback_used !== undefined && typeof value.fallback_used !== 'boolean') {
     return false
   }
+  if (value.planner_trace !== undefined && value.planner_trace !== null && !isAIPlannerTrace(value.planner_trace)) {
+    return false
+  }
 
   return typeof value.provider === 'string' && typeof value.model === 'string'
 }
@@ -171,6 +175,47 @@ function isAIGenerationRecord(value: unknown): value is AIGenerationRecord {
     return false
   }
   if (value.fallback_used !== undefined && typeof value.fallback_used !== 'boolean') {
+    return false
+  }
+  if (value.planner_trace !== undefined && value.planner_trace !== null && !isAIPlannerTrace(value.planner_trace)) {
+    return false
+  }
+
+  return true
+}
+
+function isAIPlannerTrace(value: unknown): value is AIPlannerTrace {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  if (
+    value.mode !== 'direct_style_spec' &&
+    value.mode !== 'family_planner' &&
+    value.mode !== 'mock_rule_based'
+  ) {
+    return false
+  }
+
+  if (value.family_id !== undefined && value.family_id !== null && typeof value.family_id !== 'string') {
+    return false
+  }
+
+  if (!Array.isArray(value.refinement_ids) || !value.refinement_ids.every((entry) => typeof entry === 'string')) {
+    return false
+  }
+
+  if (
+    value.intensity !== undefined &&
+    value.intensity !== null &&
+    value.intensity !== 'subtle' &&
+    value.intensity !== 'balanced' &&
+    value.intensity !== 'bold'
+  ) {
+    return false
+  }
+
+  if (value.source !== undefined && value.source !== null && typeof value.source !== 'string') {
     return false
   }
 

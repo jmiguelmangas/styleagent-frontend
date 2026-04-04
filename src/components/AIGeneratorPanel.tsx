@@ -21,6 +21,7 @@ import {
 import { useState } from 'react'
 
 import type { AIPresetIntensity, AIPromptPreviewResponse } from '../api/types'
+import type { AIPlannerTrace } from '../api/types'
 
 type AIGenerationMeta = {
   provider: string
@@ -29,6 +30,7 @@ type AIGenerationMeta = {
   warnings: string[]
   generation_ms?: number | null
   fallback_used?: boolean
+  planner_trace?: AIPlannerTrace | null
 }
 
 type AIGeneratorPanelProps = {
@@ -348,6 +350,43 @@ export function AIGeneratorPanel({
             <Alert severity="warning">
               Fallback to mock generation was used for this result.
             </Alert>
+          ) : null}
+          {meta.planner_trace ? (
+            <Box
+              sx={{
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 2,
+                p: 1.5,
+                backgroundColor: 'rgba(8,12,20,0.56)',
+              }}
+            >
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+                <Chip size="small" label={`Mode: ${meta.planner_trace.mode}`} variant="outlined" />
+                {meta.planner_trace.family_id ? (
+                  <Chip size="small" label={`Family: ${meta.planner_trace.family_id}`} color="primary" variant="outlined" />
+                ) : null}
+                {meta.planner_trace.intensity ? (
+                  <Chip size="small" label={`Intensity: ${meta.planner_trace.intensity}`} variant="outlined" />
+                ) : null}
+              </Stack>
+              {meta.planner_trace.refinement_ids.length > 0 ? (
+                <Stack direction="row" spacing={0.8} useFlexGap flexWrap="wrap" sx={{ mb: meta.planner_trace.source ? 1 : 0 }}>
+                  {meta.planner_trace.refinement_ids.map((refinementId) => (
+                    <Chip
+                      key={refinementId}
+                      size="small"
+                      label={refinementId}
+                      sx={{ backgroundColor: 'rgba(120, 157, 255, 0.12)' }}
+                    />
+                  ))}
+                </Stack>
+              ) : null}
+              {meta.planner_trace.source ? (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {meta.planner_trace.source}
+                </Typography>
+              ) : null}
+            </Box>
           ) : null}
           {meta.warnings.map((warning, index) => (
             <Alert key={`${warning}-${index}`} severity="warning">

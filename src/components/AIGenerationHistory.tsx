@@ -54,11 +54,25 @@ export function AIGenerationHistory({ records, loading, onRefresh, onUsePreset }
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 <Chip label={`${record.provider}/${record.model}`} size="small" />
                 <Chip label={`Target: ${record.target}`} size="small" />
+                {record.planner_trace?.family_id ? (
+                  <Chip label={`Family: ${record.planner_trace.family_id}`} size="small" variant="outlined" />
+                ) : null}
+                {record.planner_trace?.intensity ? (
+                  <Chip label={`Intensity: ${record.planner_trace.intensity}`} size="small" variant="outlined" />
+                ) : null}
                 {record.generation_ms !== undefined && record.generation_ms !== null && (
                   <Chip label={`${record.generation_ms}ms`} size="small" color="primary" variant="outlined" />
                 )}
                 {record.fallback_used && <Chip label="Fallback" size="small" color="warning" />}
               </Stack>
+              {record.planner_trace && (
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
+                  <Chip label={`Mode: ${record.planner_trace.mode}`} size="small" variant="outlined" />
+                  {record.planner_trace.refinement_ids.map((refinementId) => (
+                    <Chip key={`${record.generation_id}-${refinementId}`} label={refinementId} size="small" />
+                  ))}
+                </Stack>
+              )}
               <Stack direction="row" sx={{ mt: 1 }}>
                 <Button
                   type="button"

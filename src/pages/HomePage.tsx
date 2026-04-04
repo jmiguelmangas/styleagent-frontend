@@ -168,7 +168,7 @@ export function HomePage() {
   const [aiMeta, setAiMeta] = useState<
     Pick<
       GenerateStyleSpecResponse,
-      'provider' | 'model' | 'rationale' | 'warnings' | 'generation_ms' | 'fallback_used'
+      'provider' | 'model' | 'rationale' | 'warnings' | 'generation_ms' | 'fallback_used' | 'planner_trace'
     > | null
   >(null)
   const [aiPromptPreview, setAiPromptPreview] = useState<AIPromptPreviewResponse | null>(null)
@@ -403,6 +403,7 @@ export function HomePage() {
         warnings: generated.warnings,
         generation_ms: generated.generation_ms ?? null,
         fallback_used: generated.fallback_used ?? false,
+        planner_trace: generated.planner_trace ?? null,
       })
       await refreshAIGenerationHistory()
     } catch (err) {
@@ -485,6 +486,7 @@ export function HomePage() {
         warnings: generated.warnings,
         generation_ms: generated.generation_ms ?? null,
         fallback_used: generated.fallback_used ?? false,
+        planner_trace: generated.planner_trace ?? null,
       })
       await refreshAIGenerationHistory()
 
