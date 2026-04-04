@@ -56,6 +56,18 @@ function mockApi(page: Page) {
     })
   })
 
+  page.route('**/ai/planner-options', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        families: ['cinematic_portrait', 'gothic_fantasy'],
+        refinements: ['cool_teal', 'warm_skin'],
+        intensities: ['subtle', 'balanced', 'bold'],
+      }),
+    })
+  })
+
   page.route('**/ai/debug/prompt-preview', async (route) => {
     await route.fulfill({
       status: 200,
@@ -178,6 +190,13 @@ function mockApi(page: Page) {
             reasoning_summary: 'Detected contrast goal.',
             suggested_next_messages: ['reduce highlights'],
           },
+          planner_trace: {
+            mode: 'direct_style_spec',
+            family_id: 'cinematic_portrait',
+            refinement_ids: [],
+            intensity: 'bold',
+            source: 'fake',
+          },
           applied: false,
           created_at: '2026-03-01T00:00:01Z',
         },
@@ -213,6 +232,13 @@ function mockApi(page: Page) {
             detected_goals: ['contrast_tuning'],
             reasoning_summary: 'Detected contrast goal.',
             suggested_next_messages: ['reduce highlights'],
+          },
+          planner_trace: {
+            mode: 'direct_style_spec',
+            family_id: 'cinematic_portrait',
+            refinement_ids: [],
+            intensity: 'bold',
+            source: 'fake',
           },
           applied: true,
           created_at: '2026-03-01T00:00:01Z',
@@ -339,10 +365,14 @@ test('supports chat mode in the wizard and applies a turn', async ({ page }) => 
   await page.goto('/')
 
   await page.getByRole('button', { name: /Start a conversation/i }).click()
+  await page.getByRole('button', { name: 'chat-intensity-bold' }).click()
+  await page.getByRole('combobox', { name: 'Creative family' }).click()
+  await page.getByRole('option', { name: 'cinematic_portrait' }).click()
   await page.getByRole('textbox', { name: 'Message to AI' }).fill('add contrast')
   await page.getByRole('button', { name: 'Send' }).click()
 
   await expect(page.getByText('Detected contrast goal.')).toBeVisible()
+  await expect(page.getByText('Family: cinematic_portrait')).toBeVisible()
   await page.getByRole('button', { name: 'Apply turn' }).click()
   await expect(page.getByRole('button', { name: 'Apply turn' })).toHaveCount(0)
 })

@@ -8,6 +8,7 @@ import type {
   AIPromptPreviewExample,
   AIPromptPreviewResponse,
   AIGenerationRecord,
+  AIPlannerOptionsResponse,
   AIPlannerTrace,
   Artifact,
   CompileResponse,
@@ -219,6 +220,25 @@ function isAIPlannerTrace(value: unknown): value is AIPlannerTrace {
     return false
   }
 
+  return true
+}
+
+function isAIPlannerOptionsResponse(value: unknown): value is AIPlannerOptionsResponse {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (!Array.isArray(value.families) || !value.families.every((entry) => typeof entry === 'string')) {
+    return false
+  }
+  if (!Array.isArray(value.refinements) || !value.refinements.every((entry) => typeof entry === 'string')) {
+    return false
+  }
+  if (
+    !Array.isArray(value.intensities) ||
+    !value.intensities.every((entry) => entry === 'subtle' || entry === 'balanced' || entry === 'bold')
+  ) {
+    return false
+  }
   return true
 }
 
@@ -510,6 +530,13 @@ export function parseAIGenerationHistory(value: unknown): AIGenerationRecord[] {
 export function parseAIPromptPreviewResponse(value: unknown): AIPromptPreviewResponse {
   if (!isAIPromptPreviewResponse(value)) {
     throw new Error('Invalid AI prompt preview payload')
+  }
+  return value
+}
+
+export function parseAIPlannerOptionsResponse(value: unknown): AIPlannerOptionsResponse {
+  if (!isAIPlannerOptionsResponse(value)) {
+    throw new Error('Invalid AI planner options response')
   }
   return value
 }

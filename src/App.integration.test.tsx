@@ -589,6 +589,7 @@ describe('App integration', { timeout: 15_000 }, () => {
   })
 
   it('creates AI chat turn and applies it', async () => {
+    let chatTurnRequestBody: Record<string, unknown> | null = null
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string | URL, init?: RequestInit) => {
@@ -611,6 +612,16 @@ describe('App integration', { timeout: 15_000 }, () => {
         if (url.includes('/ai/generations')) {
           return new Response(JSON.stringify([]), { status: 200 })
         }
+        if (url.endsWith('/ai/planner-options')) {
+          return new Response(
+            JSON.stringify({
+              families: ['cinematic_portrait', 'gothic_fantasy'],
+              refinements: ['cool_teal', 'warm_skin'],
+              intensities: ['subtle', 'balanced', 'bold'],
+            }),
+            { status: 200 },
+          )
+        }
         if (url.endsWith('/ai/chat/sessions') && init?.method === 'POST') {
           return new Response(
             JSON.stringify({
@@ -629,6 +640,7 @@ describe('App integration', { timeout: 15_000 }, () => {
           )
         }
         if (url.endsWith('/ai/chat/sessions/sess_1/turns') && init?.method === 'POST') {
+          chatTurnRequestBody = JSON.parse(String(init.body))
           return new Response(
             JSON.stringify({
               session: {
@@ -654,6 +666,13 @@ describe('App integration', { timeout: 15_000 }, () => {
                   detected_goals: ['contrast_tuning'],
                   reasoning_summary: 'Detected contrast goal.',
                   suggested_next_messages: ['reduce highlights'],
+                },
+                planner_trace: {
+                  mode: 'direct_style_spec',
+                  family_id: 'cinematic_portrait',
+                  refinement_ids: [],
+                  intensity: 'bold',
+                  source: 'fake',
                 },
                 applied: false,
                 created_at: '2026-03-01T00:00:01Z',
@@ -689,6 +708,13 @@ describe('App integration', { timeout: 15_000 }, () => {
                   reasoning_summary: 'Detected contrast goal.',
                   suggested_next_messages: ['reduce highlights'],
                 },
+                planner_trace: {
+                  mode: 'direct_style_spec',
+                  family_id: 'cinematic_portrait',
+                  refinement_ids: [],
+                  intensity: 'bold',
+                  source: 'fake',
+                },
                 applied: true,
                 created_at: '2026-03-01T00:00:01Z',
               },
@@ -703,10 +729,20 @@ describe('App integration', { timeout: 15_000 }, () => {
     render(<App />)
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Start a conversation/i }))
+    await user.click(screen.getByRole('button', { name: 'chat-intensity-bold' }))
+    await user.click(screen.getByRole('combobox', { name: 'Creative family' }))
+    await user.click(await screen.findByRole('option', { name: 'cinematic_portrait', hidden: true }))
     await user.type(screen.getByRole('textbox', { name: 'Message to AI' }), 'add contrast')
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
     expect(await screen.findByText(/Detected contrast goal/)).toBeInTheDocument()
+    expect(await screen.findByText('Family: cinematic_portrait')).toBeInTheDocument()
+    expect(chatTurnRequestBody).toEqual({
+      message: 'add contrast',
+      auto_apply: false,
+      family_id: 'cinematic_portrait',
+      intensity: 'bold',
+    })
     await user.click(screen.getByRole('button', { name: 'Apply turn' }))
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Apply turn' })).not.toBeInTheDocument()
