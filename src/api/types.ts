@@ -82,6 +82,14 @@ export interface GenerateStyleSpecRequest {
 
 export type AIPresetIntensity = 'subtle' | 'balanced' | 'bold'
 
+export interface AIPlannerTrace {
+  mode: 'direct_style_spec' | 'family_planner' | 'mock_rule_based'
+  family_id?: string | null
+  refinement_ids: string[]
+  intensity?: AIPresetIntensity | null
+  source?: string | null
+}
+
 export interface GenerateStyleSpecResponse {
   style_spec: StyleSpec
   rationale?: string | null
@@ -90,6 +98,7 @@ export interface GenerateStyleSpecResponse {
   model: string
   generation_ms?: number | null
   fallback_used?: boolean
+  planner_trace?: AIPlannerTrace | null
 }
 
 export interface AIPromptPreviewExample {
@@ -123,6 +132,7 @@ export interface AIGenerationRecord {
   model: string
   generation_ms?: number | null
   fallback_used?: boolean
+  planner_trace?: AIPlannerTrace | null
 }
 
 export interface AIParameterChange {
