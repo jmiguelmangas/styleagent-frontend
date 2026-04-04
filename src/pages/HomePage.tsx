@@ -48,6 +48,7 @@ import {
   createStyleVersion,
   downloadArtifact,
   generateStyleSpec,
+  getAIPlannerOptions,
   getRunnerJob,
   listAIGenerations,
   listStyleArtifacts,
@@ -200,6 +201,9 @@ export function HomePage() {
   const [aiChatMessage, setAiChatMessage] = useState('')
   const [aiChatAutoApply, setAiChatAutoApply] = useState(false)
   const [aiChatApplyingTurnId, setAiChatApplyingTurnId] = useState<string | null>(null)
+  const [aiChatFamilyId, setAiChatFamilyId] = useState<string | null>(null)
+  const [aiChatIntensity, setAiChatIntensity] = useState<AIPresetIntensity>('balanced')
+  const [aiPlannerFamilies, setAiPlannerFamilies] = useState<string[]>([])
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null)
@@ -312,6 +316,8 @@ export function HomePage() {
     setAiChatSessionId(null)
     setAiChatTurns([])
     setAiChatMessage('')
+    setAiChatFamilyId(null)
+    setAiChatIntensity('balanced')
   }
 
   async function handleSendAIChatTurn() {
@@ -326,6 +332,8 @@ export function HomePage() {
       const response = await createAIChatTurn(sessionId, {
         message,
         auto_apply: aiChatAutoApply,
+        family_id: aiChatFamilyId,
+        intensity: aiChatIntensity,
       })
       setAiChatSessionId(response.session.session_id)
       setAiChatTurns((prev) => [...prev, response.turn])
@@ -587,6 +595,28 @@ export function HomePage() {
 
   useEffect(() => {
     void refreshAIGenerationHistory()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPlannerOptions() {
+      try {
+        const options = await getAIPlannerOptions()
+        if (!cancelled) {
+          setAiPlannerFamilies(options.families)
+        }
+      } catch {
+        if (!cancelled) {
+          setAiPlannerFamilies([])
+        }
+      }
+    }
+
+    void loadPlannerOptions()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function handleCreateStyle() {
@@ -1183,11 +1213,16 @@ export function HomePage() {
                   turns={aiChatTurns}
                   message={aiChatMessage}
                   autoApply={aiChatAutoApply}
+                  familyId={aiChatFamilyId}
+                  intensity={aiChatIntensity}
+                  availableFamilies={aiPlannerFamilies}
                   loading={isLoading('ai_chat') || isLoading('ai_chat_apply')}
                   applyingTurnId={aiChatApplyingTurnId}
                   savingPreset={isLoading('save_preset')}
                   onMessageChange={setAiChatMessage}
                   onAutoApplyChange={setAiChatAutoApply}
+                  onFamilyChange={setAiChatFamilyId}
+                  onIntensityChange={setAiChatIntensity}
                   onSuggestionSelect={setAiChatMessage}
                   onSavePreset={() => {
                     void handleSaveCurrentPreset()

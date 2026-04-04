@@ -4,6 +4,7 @@ import {
   parseAIChatSessionDetail,
   parseAIChatTurnResponse,
   parseAIGenerationHistory,
+  parseAIPlannerOptionsResponse,
   parseAIPromptPreviewResponse,
   parseArtifacts,
   parseCompileResponse,
@@ -19,6 +20,7 @@ import type {
   AIChatSessionDetail,
   AIChatTurnResponse,
   AIGenerationRecord,
+  AIPlannerOptionsResponse,
   AIPromptPreviewResponse,
   ApiError,
   Artifact,
@@ -231,6 +233,10 @@ export async function listAIGenerations(limit = 20): Promise<AIGenerationRecord[
   return parseAIGenerationHistory(await request(`/ai/generations?limit=${limit}`))
 }
 
+export async function getAIPlannerOptions(): Promise<AIPlannerOptionsResponse> {
+  return parseAIPlannerOptionsResponse(await request('/ai/planner-options'))
+}
+
 export async function createAIChatSession(payload: {
   title?: string
   style_spec: StyleVersion['style_spec']
@@ -249,7 +255,12 @@ export async function getAIChatSession(sessionId: string): Promise<AIChatSession
 
 export async function createAIChatTurn(
   sessionId: string,
-  payload: { message: string; auto_apply?: boolean },
+  payload: {
+    message: string
+    auto_apply?: boolean
+    family_id?: string | null
+    intensity?: 'subtle' | 'balanced' | 'bold' | null
+  },
 ): Promise<AIChatTurnResponse> {
   return parseAIChatTurnResponse(
     await request(`/ai/chat/sessions/${sessionId}/turns`, {

@@ -3,20 +3,37 @@ import SendIcon from '@mui/icons-material/Send'
 import UndoIcon from '@mui/icons-material/Undo'
 import DoneIcon from '@mui/icons-material/Done'
 import SaveIcon from '@mui/icons-material/Save'
-import { Alert, Button, Chip, Paper, Stack, Switch, TextField, Typography } from '@mui/material'
+import {
+  Alert,
+  Button,
+  Chip,
+  MenuItem,
+  Paper,
+  Stack,
+  Switch,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material'
 
-import type { AIChatTurn } from '../api/types'
+import type { AIChatTurn, AIPresetIntensity } from '../api/types'
 
 type AIChatPanelProps = {
   sessionId: string | null
   turns: AIChatTurn[]
   message: string
   autoApply: boolean
+  familyId: string | null
+  intensity: AIPresetIntensity
+  availableFamilies: string[]
   loading: boolean
   applyingTurnId: string | null
   savingPreset: boolean
   onMessageChange: (value: string) => void
   onAutoApplyChange: (value: boolean) => void
+  onFamilyChange: (value: string | null) => void
+  onIntensityChange: (value: AIPresetIntensity) => void
   onSuggestionSelect: (value: string) => void
   onSavePreset: () => void
   onSend: () => void
@@ -30,11 +47,16 @@ export function AIChatPanel({
   turns,
   message,
   autoApply,
+  familyId,
+  intensity,
+  availableFamilies,
   loading,
   applyingTurnId,
   savingPreset,
   onMessageChange,
   onAutoApplyChange,
+  onFamilyChange,
+  onIntensityChange,
   onSuggestionSelect,
   onSavePreset,
   onSend,
@@ -69,6 +91,61 @@ export function AIChatPanel({
       <p style={{ marginTop: 0 }}>
         Session: <strong>{sessionId ?? 'not started'}</strong> · Turns: <strong>{turns.length}</strong>
       </p>
+
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={1.25}
+        alignItems={{ xs: 'stretch', md: 'center' }}
+        sx={{ mb: 1.5 }}
+      >
+        <TextField
+          select
+          label="Creative family"
+          value={familyId ?? ''}
+          onChange={(event) => onFamilyChange(event.target.value || null)}
+          size="small"
+          SelectProps={{
+            MenuProps: {
+              disablePortal: true,
+            },
+          }}
+          sx={{ minWidth: { xs: '100%', md: 260 } }}
+        >
+          <MenuItem value="">Auto-detect from conversation</MenuItem>
+          {availableFamilies.map((family) => (
+            <MenuItem key={family} value={family}>
+              {family}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Stack spacing={0.5}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            Intensity
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={intensity}
+            onChange={(_event, value: AIPresetIntensity | null) => {
+              if (value) {
+                onIntensityChange(value)
+              }
+            }}
+            aria-label="chat-intensity"
+          >
+            <ToggleButton value="subtle" aria-label="chat-intensity-subtle">
+              Subtle
+            </ToggleButton>
+            <ToggleButton value="balanced" aria-label="chat-intensity-balanced">
+              Balanced
+            </ToggleButton>
+            <ToggleButton value="bold" aria-label="chat-intensity-bold">
+              Bold
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+      </Stack>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1 }}>
         <TextField
@@ -149,10 +226,23 @@ export function AIChatPanel({
                   <Chip key={goal} label={goal} size="small" variant="outlined" />
                 ))}
                 {turn.planner_trace?.family_id ? (
-                  <Chip label={`Family: ${turn.planner_trace.family_id}`} size="small" color="primary" variant="outlined" />
+                  <Chip
+                    label={`Family: ${turn.planner_trace.family_id}`}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    onClick={() => onFamilyChange(turn.planner_trace?.family_id ?? null)}
+                    clickable
+                  />
                 ) : null}
                 {turn.planner_trace?.intensity ? (
-                  <Chip label={`Intensity: ${turn.planner_trace.intensity}`} size="small" variant="outlined" />
+                  <Chip
+                    label={`Intensity: ${turn.planner_trace.intensity}`}
+                    size="small"
+                    variant="outlined"
+                    onClick={() => onIntensityChange(turn.planner_trace?.intensity ?? 'balanced')}
+                    clickable
+                  />
                 ) : null}
                 {turn.planner_trace ? (
                   <Chip label={`Mode: ${turn.planner_trace.mode}`} size="small" variant="outlined" />

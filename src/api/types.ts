@@ -90,6 +90,12 @@ export interface AIPlannerTrace {
   source?: string | null
 }
 
+export interface AIPlannerOptionsResponse {
+  families: string[]
+  refinements: string[]
+  intensities: AIPresetIntensity[]
+}
+
 export interface GenerateStyleSpecResponse {
   style_spec: StyleSpec
   rationale?: string | null
