@@ -589,7 +589,7 @@ describe('App integration', { timeout: 15_000 }, () => {
   })
 
   it('creates AI chat turn and applies it', async () => {
-    let chatTurnRequestBody: Record<string, unknown> | null = null
+    const chatTurnRequestBodies: Record<string, unknown>[] = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string | URL, init?: RequestInit) => {
@@ -640,7 +640,17 @@ describe('App integration', { timeout: 15_000 }, () => {
           )
         }
         if (url.endsWith('/ai/chat/sessions/sess_1/turns') && init?.method === 'POST') {
-          chatTurnRequestBody = JSON.parse(String(init.body))
+          const parsedBody = JSON.parse(String(init.body))
+          chatTurnRequestBodies.push(parsedBody)
+          const turnId = chatTurnRequestBodies.length === 1 ? 'turn_1' : 'turn_2'
+          const userMessage =
+            typeof parsedBody.message === 'string' ? parsedBody.message : 'chat message'
+          const familyId =
+            typeof parsedBody.family_id === 'string' ? parsedBody.family_id : 'cinematic_portrait'
+          const intensity =
+            parsedBody.intensity === 'subtle' || parsedBody.intensity === 'balanced' || parsedBody.intensity === 'bold'
+              ? parsedBody.intensity
+              : 'bold'
           return new Response(
             JSON.stringify({
               session: {
@@ -656,9 +666,9 @@ describe('App integration', { timeout: 15_000 }, () => {
                 updated_at: '2026-03-01T00:00:00Z',
               },
               turn: {
-                turn_id: 'turn_1',
+                turn_id: turnId,
                 session_id: 'sess_1',
-                user_message: 'add contrast',
+                user_message: userMessage,
                 assistant_message: 'I prepared updates.',
                 proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
                 warnings: [],
@@ -669,9 +679,9 @@ describe('App integration', { timeout: 15_000 }, () => {
                 },
                 planner_trace: {
                   mode: 'direct_style_spec',
-                  family_id: 'cinematic_portrait',
+                  family_id: familyId,
                   refinement_ids: [],
-                  intensity: 'bold',
+                  intensity,
                   source: 'fake',
                 },
                 applied: false,
@@ -681,7 +691,14 @@ describe('App integration', { timeout: 15_000 }, () => {
             { status: 201 },
           )
         }
-        if (url.endsWith('/ai/chat/sessions/sess_1/turns/turn_1/apply') && init?.method === 'POST') {
+        if (
+          (url.endsWith('/ai/chat/sessions/sess_1/turns/turn_1/apply') ||
+            url.endsWith('/ai/chat/sessions/sess_1/turns/turn_2/apply')) &&
+          init?.method === 'POST'
+        ) {
+          const turnId = url.endsWith('/turn_2/apply') ? 'turn_2' : 'turn_1'
+          const userMessage =
+            turnId === 'turn_2' ? 'Keep the Cinematic Portrait direction.' : 'add contrast'
           return new Response(
             JSON.stringify({
               session: {
@@ -697,9 +714,9 @@ describe('App integration', { timeout: 15_000 }, () => {
                 updated_at: '2026-03-01T00:00:02Z',
               },
               turn: {
-                turn_id: 'turn_1',
+                turn_id: turnId,
                 session_id: 'sess_1',
-                user_message: 'add contrast',
+                user_message: userMessage,
                 assistant_message: 'I prepared updates.',
                 proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
                 warnings: [],
@@ -735,19 +752,26 @@ describe('App integration', { timeout: 15_000 }, () => {
 
     expect(await screen.findByText(/Detected contrast goal/)).toBeInTheDocument()
     expect(await screen.findByText('Family: cinematic_portrait')).toBeInTheDocument()
-    expect(chatTurnRequestBody).toEqual({
+    expect(chatTurnRequestBodies[0]).toEqual({
       message: 'add contrast',
       auto_apply: false,
       family_id: null,
       intensity: 'bold',
     })
     await user.click(screen.getByRole('button', { name: 'Stay in Cinematic Portrait' }))
-    expect(screen.getByRole('textbox', { name: 'Message to AI' })).toHaveValue(
-      'Keep the Cinematic Portrait direction.',
-    )
-    await user.click(screen.getByRole('button', { name: 'Apply turn' }))
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Apply turn' })).not.toBeInTheDocument()
+      expect(chatTurnRequestBodies[1]).toEqual({
+        message: 'Keep the Cinematic Portrait direction.',
+        auto_apply: false,
+        family_id: 'cinematic_portrait',
+        intensity: 'bold',
+      })
     })
+    const applyButtons = screen.getAllByRole('button', { name: 'Apply turn' })
+    await user.click(applyButtons[applyButtons.length - 1])
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'Apply turn' })).toHaveLength(1)
+    })
+    expect(screen.getByText('Keep the Cinematic Portrait direction.')).toBeInTheDocument()
   })
 })

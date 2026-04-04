@@ -43,6 +43,7 @@ type AIChatPanelProps = {
   onFamilyChange: (value: string | null) => void
   onIntensityChange: (value: AIPresetIntensity) => void
   onSuggestionSelect: (value: string) => void
+  onQuickSend: (value: string, nextIntensity?: AIPresetIntensity, nextFamilyId?: string | null) => void
   onSavePreset: () => void
   onSend: () => void
   onApplyTurn: (turnId: string) => void
@@ -66,6 +67,7 @@ export function AIChatPanel({
   onFamilyChange,
   onIntensityChange,
   onSuggestionSelect,
+  onQuickSend,
   onSavePreset,
   onSend,
   onApplyTurn,
@@ -79,24 +81,21 @@ export function AIChatPanel({
       key: 'subtle',
       label: 'Make it subtler',
       onClick: () => {
-        onIntensityChange('subtle')
-        onSuggestionSelect('Make it subtler while keeping the current creative direction.')
+        onQuickSend('Make it subtler while keeping the current creative direction.', 'subtle', activeFamilyId)
       },
     },
     {
       key: 'balanced',
       label: 'Reset to balanced',
       onClick: () => {
-        onIntensityChange('balanced')
-        onSuggestionSelect('Bring it back to a balanced version of this look.')
+        onQuickSend('Bring it back to a balanced version of this look.', 'balanced', activeFamilyId)
       },
     },
     {
       key: 'bold',
       label: 'Push it further',
       onClick: () => {
-        onIntensityChange('bold')
-        onSuggestionSelect('Push the look further while keeping the same creative direction.')
+        onQuickSend('Push the look further while keeping the same creative direction.', 'bold', activeFamilyId)
       },
     },
   ]
@@ -214,10 +213,7 @@ export function AIChatPanel({
               clickable
               color="primary"
               variant="outlined"
-              onClick={() => {
-                onFamilyChange(activeFamilyId)
-                onSuggestionSelect(`Keep the ${formatFamilyLabel(activeFamilyId)} direction.`)
-              }}
+              onClick={() => onQuickSend(`Keep the ${formatFamilyLabel(activeFamilyId)} direction.`, intensity, activeFamilyId)}
             />
           ) : null}
         </Stack>

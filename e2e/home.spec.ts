@@ -161,7 +161,16 @@ function mockApi(page: Page) {
     })
   })
 
+  let chatTurnCount = 0
+
   page.route('**/ai/chat/sessions/sess_1/turns', async (route) => {
+    chatTurnCount += 1
+    const body = route.request().postDataJSON() as {
+      message?: string
+      family_id?: string | null
+      intensity?: 'subtle' | 'balanced' | 'bold'
+    }
+    const turnId = chatTurnCount === 1 ? 'turn_1' : 'turn_2'
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
@@ -179,9 +188,9 @@ function mockApi(page: Page) {
           updated_at: '2026-03-01T00:00:00Z',
         },
         turn: {
-          turn_id: 'turn_1',
+          turn_id: turnId,
           session_id: 'sess_1',
-          user_message: 'add contrast',
+          user_message: body.message ?? 'add contrast',
           assistant_message: 'I prepared updates.',
           proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
           warnings: [],
@@ -192,9 +201,9 @@ function mockApi(page: Page) {
           },
           planner_trace: {
             mode: 'direct_style_spec',
-            family_id: 'cinematic_portrait',
+            family_id: body.family_id ?? 'cinematic_portrait',
             refinement_ids: [],
-            intensity: 'bold',
+            intensity: body.intensity ?? 'bold',
             source: 'fake',
           },
           applied: false,
@@ -204,7 +213,8 @@ function mockApi(page: Page) {
     })
   })
 
-  page.route('**/ai/chat/sessions/sess_1/turns/turn_1/apply', async (route) => {
+  page.route(/.*\/ai\/chat\/sessions\/sess_1\/turns\/turn_(1|2)\/apply$/, async (route) => {
+    const isSecondTurn = route.request().url().endsWith('/turn_2/apply')
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -222,9 +232,9 @@ function mockApi(page: Page) {
           updated_at: '2026-03-01T00:00:02Z',
         },
         turn: {
-          turn_id: 'turn_1',
+          turn_id: isSecondTurn ? 'turn_2' : 'turn_1',
           session_id: 'sess_1',
-          user_message: 'add contrast',
+          user_message: isSecondTurn ? 'Keep the Cinematic Portrait direction.' : 'add contrast',
           assistant_message: 'I prepared updates.',
           proposed_changes: [{ key: 'Contrast', from_value: 4, to_value: 8 }],
           warnings: [],
@@ -372,11 +382,9 @@ test('supports chat mode in the wizard and applies a turn', async ({ page }) => 
   await expect(page.getByText('Detected contrast goal.')).toBeVisible()
   await expect(page.getByText('Family: cinematic_portrait')).toBeVisible()
   await page.getByRole('button', { name: 'Stay in Cinematic Portrait' }).click()
-  await expect(page.getByRole('textbox', { name: 'Message to AI' })).toHaveValue(
-    'Keep the Cinematic Portrait direction.',
-  )
-  await page.getByRole('button', { name: 'Apply turn' }).click()
-  await expect(page.getByRole('button', { name: 'Apply turn' })).toHaveCount(0)
+  await expect(page.getByText('Turns: 2')).toBeVisible()
+  await page.getByRole('button', { name: 'Apply turn' }).nth(1).click()
+  await expect(page.getByText('Applied')).toHaveCount(1)
 })
 
 test('keeps dark surfaces in generator and refine steps', async ({ page }) => {

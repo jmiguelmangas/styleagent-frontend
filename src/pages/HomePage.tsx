@@ -348,6 +348,37 @@ export function HomePage() {
     }
   }
 
+  async function handleQuickAIChatTurn(
+    nextMessage: string,
+    nextIntensity: AIPresetIntensity = aiChatIntensity,
+    nextFamilyId: string | null = aiChatFamilyId,
+  ) {
+    setAiChatMessage(nextMessage)
+    setAiChatIntensity(nextIntensity)
+    setAiChatFamilyId(nextFamilyId)
+
+    setActiveAction('ai_chat')
+    setFlowError(null)
+    try {
+      const sessionId = await ensureAIChatSession()
+      const response = await createAIChatTurn(sessionId, {
+        message: nextMessage,
+        auto_apply: aiChatAutoApply,
+        family_id: nextFamilyId,
+        intensity: nextIntensity,
+      })
+      setAiChatSessionId(response.session.session_id)
+      setAiChatTurns((prev) => [...prev, response.turn])
+      if (response.turn.applied || aiChatAutoApply) {
+        applyGeneratedStyleSpec(response.session.style_spec)
+      }
+    } catch (err) {
+      setFlowError(toApiError(err))
+    } finally {
+      setActiveAction(null)
+    }
+  }
+
   async function handleApplyAIChatTurn(turnId: string) {
     if (!aiChatSessionId) {
       setFlowError({ message: 'Start a chat session first.', status: 400 })
@@ -1224,6 +1255,9 @@ export function HomePage() {
                   onFamilyChange={setAiChatFamilyId}
                   onIntensityChange={setAiChatIntensity}
                   onSuggestionSelect={setAiChatMessage}
+                  onQuickSend={(nextMessage, nextIntensity, nextFamilyId) => {
+                    void handleQuickAIChatTurn(nextMessage, nextIntensity, nextFamilyId ?? aiChatFamilyId)
+                  }}
                   onSavePreset={() => {
                     void handleSaveCurrentPreset()
                   }}
