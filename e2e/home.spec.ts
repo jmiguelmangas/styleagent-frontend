@@ -404,9 +404,11 @@ test('runs the wizard flow end to end in generator mode', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Save and export' })).toBeVisible()
   await page.getByRole('button', { name: 'Save preset' }).click()
   await expect(page.locator('text=Style ID: style_123').first()).toBeVisible()
+  await expect(page.getByText('Preset saved')).toBeVisible()
 
   await page.getByRole('button', { name: 'Export .costyle' }).click()
   await expect(page.locator('text=Artifact ID: artifact_001').first()).toBeVisible()
+  await expect(page.getByText('Export started')).toBeVisible()
 })
 
 test('supports chat mode in the wizard and applies a turn', async ({ page }) => {

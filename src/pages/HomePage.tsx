@@ -17,6 +17,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
+  AlertTitle,
   Box,
   Button,
   Card,
@@ -128,6 +129,12 @@ type ActionKey =
   | 'download'
   | 'history'
   | 'job'
+
+type FlowNotice = {
+  severity: 'success' | 'info'
+  title: string
+  message: string
+}
 type EditorMode = 'guided' | 'advanced'
 type AIMode = 'generator' | 'chat'
 type JourneyStartMode = 'generator' | 'chat' | 'advanced'
@@ -232,6 +239,7 @@ export function HomePage() {
   const [aiPlannerFamilies, setAiPlannerFamilies] = useState<string[]>([])
 
   const [flowError, setFlowError] = useState<ApiError | null>(null)
+  const [flowNotice, setFlowNotice] = useState<FlowNotice | null>(null)
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null)
   const jobPollingRef = useRef(false)
 
@@ -275,6 +283,50 @@ export function HomePage() {
       currentPresetSignature.signature === savedPresetSignature
     )
   }, [createdStyle, createdVersion, savedPresetSignature, currentPresetSignature])
+  const canSavePreset = activeAction === null && !isCurrentPresetSaved
+  const canExportFile = activeAction === null && createdVersion !== null && executionMode === 'api'
+  const canSendToCaptureOne = activeAction === null && createdVersion !== null && executionMode === 'host'
+  const exportReadiness = useMemo(() => {
+    if (!createdVersion) {
+      return {
+        severity: 'info' as const,
+        title: 'Save the preset first',
+        message: 'Create or reuse a saved preset version before exporting or sending it to Capture One.',
+      }
+    }
+    if (!isCurrentPresetSaved) {
+      return {
+        severity: 'warning' as const,
+        title: 'You have unsaved edits',
+        message: 'Save again before exporting if you want the latest changes included in the output.',
+      }
+    }
+    if (executionMode === 'host' && runnerJobId && runnerJobStatus && runnerJobStatus !== 'succeeded' && runnerJobStatus !== 'failed') {
+      return {
+        severity: 'info' as const,
+        title: 'Host sync in progress',
+        message: 'StyleAgent is tracking the Capture One sync job. You can keep this page open while it completes.',
+      }
+    }
+    if (compileResult) {
+      return {
+        severity: 'success' as const,
+        title: executionMode === 'host' ? 'Latest export is ready' : 'Latest export is ready to download',
+        message:
+          executionMode === 'host' && hostImportedPath
+            ? `The latest artifact was imported at ${hostImportedPath}.`
+            : 'The latest compiled artifact is ready. You can download it again from the actions below.',
+      }
+    }
+    return {
+      severity: 'success' as const,
+      title: 'Preset is ready to export',
+      message:
+        executionMode === 'host'
+          ? 'Send the saved version directly to Capture One.'
+          : 'Export a .costyle file from the saved version.',
+      }
+  }, [createdVersion, isCurrentPresetSaved, executionMode, runnerJobId, runnerJobStatus, compileResult, hostImportedPath])
   const flowCardMinHeight = wizardStep === 0 ? 280 : 560
   const computedJourneyStepIndex = hasPreparedExport
     ? 3
@@ -292,6 +344,7 @@ export function HomePage() {
   function selectJourneyStart(mode: JourneyStartMode) {
     setJourneyStartMode(mode)
     setFlowError(null)
+    setFlowNotice(null)
     setWizardStep(1)
     if (mode === 'chat') {
       setAiMode('chat')
@@ -849,6 +902,7 @@ export function HomePage() {
 
     setActiveAction('style')
     setFlowError(null)
+    setFlowNotice(null)
     setCreatedVersion(null)
     setSavedPresetSignature(null)
     setCompileResult(null)
@@ -887,6 +941,7 @@ export function HomePage() {
 
     setActiveAction('version')
     setFlowError(null)
+    setFlowNotice(null)
     setCompileResult(null)
     setRunnerJobId(null)
     setRunnerJobStatus(null)
@@ -923,6 +978,7 @@ export function HomePage() {
   async function handleCompile() {
     setActiveAction('compile')
     setFlowError(null)
+    setFlowNotice(null)
 
     try {
       const { style, version: savedVersion } = await ensureCurrentPresetSaved()
@@ -942,6 +998,11 @@ export function HomePage() {
         setHostErrorDetails(null)
         setShowHostErrorDetails(false)
         setCompileResult(null)
+        setFlowNotice({
+          severity: 'info',
+          title: 'Capture One sync started',
+          message: 'StyleAgent sent the saved version to the host runner. Keep this page open while the sync finishes.',
+        })
         return
       }
 
@@ -953,6 +1014,11 @@ export function HomePage() {
       setHostErrorCode(null)
       setHostErrorDetails(null)
       setShowHostErrorDetails(false)
+      setFlowNotice({
+        severity: 'success',
+        title: 'Export ready',
+        message: 'The latest .costyle artifact is ready. You can download it again from the actions below.',
+      })
       await refreshArtifactHistory(style.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
@@ -972,6 +1038,7 @@ export function HomePage() {
 
     setActiveAction('job')
     setFlowError(null)
+    setFlowNotice(null)
     try {
       const job = await getRunnerJob(runnerJobId)
       setRunnerJobStatus(job.status)
@@ -986,6 +1053,11 @@ export function HomePage() {
           const host = job.result.host_integration
           if (host?.mode === 'host' && host.imported_costyle_path) {
             setHostImportedPath(host.imported_costyle_path)
+            setFlowNotice({
+              severity: 'success',
+              title: 'Capture One sync completed',
+              message: `The latest .costyle was imported into Capture One at ${host.imported_costyle_path}.`,
+            })
           }
           await refreshArtifactHistory(createdStyle.style_id)
         }
@@ -1045,6 +1117,11 @@ export function HomePage() {
             const host = job.result.host_integration
             if (host?.mode === 'host' && host.imported_costyle_path) {
               setHostImportedPath(host.imported_costyle_path)
+              setFlowNotice({
+                severity: 'success',
+                title: 'Capture One sync completed',
+                message: `The latest .costyle was imported into Capture One at ${host.imported_costyle_path}.`,
+              })
             }
             await refreshArtifactHistory(createdStyle.style_id)
           }
@@ -1084,9 +1161,15 @@ export function HomePage() {
   async function triggerDownload(artifactId: string, filename: string) {
     setActiveAction('download')
     setFlowError(null)
+    setFlowNotice(null)
 
     try {
       await downloadArtifactToFile(artifactId, filename)
+      setFlowNotice({
+        severity: 'success',
+        title: 'Download started',
+        message: 'Your compiled .costyle is being downloaded now.',
+      })
     } catch (err) {
       setFlowError(toApiError(err))
     } finally {
@@ -1115,12 +1198,18 @@ export function HomePage() {
 
     setActiveAction('compile_download')
     setFlowError(null)
+    setFlowNotice(null)
 
     try {
       const { style, version: savedVersion } = await ensureCurrentPresetSaved()
       const compiled = await compileStyleVersion(style.style_id, savedVersion.version)
       setCompileResult(compiled)
       await downloadArtifactToFile(compiled.artifact_id, downloadFilename)
+      setFlowNotice({
+        severity: 'success',
+        title: 'Export started',
+        message: 'The latest saved preset was compiled and the .costyle download has started.',
+      })
       await refreshArtifactHistory(style.style_id)
     } catch (err) {
       setFlowError(toApiError(err))
@@ -1141,6 +1230,7 @@ export function HomePage() {
     }
     setActiveAction('download')
     setFlowError(null)
+    setFlowNotice(null)
 
     try {
       await downloadArtifactToFile(artifactId, downloadFilename)
@@ -1154,10 +1244,16 @@ export function HomePage() {
   async function handleSaveCurrentPreset() {
     setActiveAction('save_preset')
     setFlowError(null)
+    setFlowNotice(null)
 
     try {
-      const { style } = await ensureCurrentPresetSaved()
+      const { style, version: savedVersion } = await ensureCurrentPresetSaved()
       await refreshArtifactHistory(style.style_id)
+      setFlowNotice({
+        severity: 'success',
+        title: 'Preset saved',
+        message: `${style.name} ${savedVersion.version} is ready for export or Capture One sync.`,
+      })
       setWizardStep(3)
     } catch (err) {
       const apiError = toApiError(err)
@@ -1634,6 +1730,17 @@ export function HomePage() {
                 </ToggleButtonGroup>
               </Stack>
 
+              <Alert severity={exportReadiness.severity} sx={{ borderRadius: 2.5 }}>
+                <strong>{exportReadiness.title}</strong> {exportReadiness.message}
+              </Alert>
+
+              {flowNotice ? (
+                <Alert severity={flowNotice.severity} sx={{ borderRadius: 2.5 }}>
+                  <AlertTitle>{flowNotice.title}</AlertTitle>
+                  {flowNotice.message}
+                </Alert>
+              ) : null}
+
               <Box
                 sx={{
                   display: 'grid',
@@ -1641,41 +1748,66 @@ export function HomePage() {
                   gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
                 }}
               >
-                <Button
-                  variant="contained"
-                  size="large"
-                  startIcon={<RocketLaunchIcon />}
-                  onClick={() => {
-                    void handleSaveCurrentPreset()
-                  }}
-                  disabled={activeAction !== null || isCurrentPresetSaved}
-                >
-                  {isLoading('save_preset') ? 'Saving preset...' : isCurrentPresetSaved ? 'Preset saved' : 'Save preset'}
-                </Button>
+                <Stack spacing={0.75}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    startIcon={<RocketLaunchIcon />}
+                    onClick={() => {
+                      void handleSaveCurrentPreset()
+                    }}
+                    disabled={!canSavePreset}
+                  >
+                    {isLoading('save_preset') ? 'Saving preset...' : isCurrentPresetSaved ? 'Preset saved' : 'Save preset'}
+                  </Button>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
+                    {isCurrentPresetSaved
+                      ? 'Current preset version already matches these edits.'
+                      : 'Save the current name, version and StyleSpec before export.'}
+                  </Typography>
+                </Stack>
 
-                <Button
-                  variant="outlined"
-                  size="large"
-                  startIcon={<DnsIcon />}
-                  onClick={() => {
-                    void handleCompileAndDownload()
-                  }}
-                  disabled={activeAction !== null || !createdVersion || executionMode !== 'api'}
-                >
-                  {isLoading('compile_download') ? 'Exporting...' : 'Export .costyle'}
-                </Button>
+                <Stack spacing={0.75}>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<DnsIcon />}
+                    onClick={() => {
+                      void handleCompileAndDownload()
+                    }}
+                    disabled={!canExportFile}
+                  >
+                    {isLoading('compile_download') ? 'Exporting...' : 'Export .costyle'}
+                  </Button>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
+                    {executionMode !== 'api'
+                      ? 'Switch to Export file mode to download a .costyle.'
+                      : !createdVersion
+                        ? 'Available after the preset has been saved.'
+                        : 'Compile the saved version and download the latest .costyle artifact.'}
+                  </Typography>
+                </Stack>
 
-                <Button
-                  variant="outlined"
-                  size="large"
-                  startIcon={<LaptopMacIcon />}
-                  onClick={() => {
-                    void handleCompile()
-                  }}
-                  disabled={activeAction !== null || !createdVersion || executionMode !== 'host'}
-                >
-                  {isLoading('compile') ? 'Sending...' : 'Send to Capture One'}
-                </Button>
+                <Stack spacing={0.75}>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<LaptopMacIcon />}
+                    onClick={() => {
+                      void handleCompile()
+                    }}
+                    disabled={!canSendToCaptureOne}
+                  >
+                    {isLoading('compile') ? 'Sending...' : 'Send to Capture One'}
+                  </Button>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
+                    {executionMode !== 'host'
+                      ? 'Switch to Send to Capture One mode to run the host sync.'
+                      : !createdVersion
+                        ? 'Available after the preset has been saved.'
+                        : 'Send the saved version through the runner and track its sync status below.'}
+                  </Typography>
+                </Stack>
               </Box>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -1705,6 +1837,12 @@ export function HomePage() {
                     {isLoading('job') ? 'Checking job...' : isAutoPollingJob ? 'Tracking job...' : 'Check sync status'}
                   </Button>
                 </Stack>
+              ) : null}
+
+              {hostImportedPath ? (
+                <Alert severity="success" sx={{ borderRadius: 2.5 }}>
+                  Capture One import completed. Imported file: <strong>{hostImportedPath}</strong>
+                </Alert>
               ) : null}
 
               {compileResult ? (
