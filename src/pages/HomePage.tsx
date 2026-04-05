@@ -1957,14 +1957,14 @@ export function HomePage() {
             <Stack direction="row" spacing={1} alignItems="center">
               <InsightsIcon fontSize="small" />
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                Manual pipeline and technical details
+                Manual pipeline
               </Typography>
             </Stack>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2}>
-              <Typography variant="body2" sx={{ color: '#415066' }}>
-                This is the full low-level pipeline for testing and debugging. Most users should stay in the guided flow above.
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Use this only when you want to step through the raw backend flow manually. The guided flow above should remain the default path.
               </Typography>
 
               <Box className="flow-actions">
@@ -1996,8 +1996,31 @@ export function HomePage() {
                 <button type="button" onClick={handleDownloadArtifact} disabled={activeAction !== null || !compileResult}>
                   {isLoading('download') ? 'Downloading...' : '4. Download Latest'}
                 </button>
-                <button
+              </Box>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion sx={{ backgroundColor: 'rgba(18, 23, 34, 0.88)' }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <DataObjectIcon fontSize="small" />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Technical details
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                IDs, runner state and raw export metadata for debugging. Keep this collapsed unless you are diagnosing the pipeline.
+              </Typography>
+
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button
                   type="button"
+                  variant="outlined"
+                  size="small"
                   onClick={() => {
                     if (!createdStyle) {
                       return
@@ -2006,32 +2029,34 @@ export function HomePage() {
                   }}
                   disabled={activeAction !== null || !createdStyle}
                 >
-                  {isLoading('history') ? 'Refreshing...' : 'Refresh History'}
-                </button>
-              </Box>
+                  {isLoading('history') ? 'Refreshing...' : 'Refresh history'}
+                </Button>
+              </Stack>
 
-              <Box className="flow-output">
-                <p>
-                  <strong>Style ID:</strong> {createdStyle?.style_id ?? '-'}
-                </p>
-                <p>
-                  <strong>Version:</strong> {createdVersion?.version ?? '-'}
-                </p>
-                <p>
-                  <strong>Artifact ID:</strong> {compileResult?.artifact_id ?? '-'}
-                </p>
-                <p>
-                  <strong>Runner Job:</strong> {runnerJobId ?? '-'}
-                </p>
-                <p>
-                  <strong>Runner Status:</strong> {runnerJobStatus ?? '-'}
-                </p>
-                <p>
-                  <strong>Host Imported Path:</strong> {hostImportedPath ?? '-'}
-                </p>
-                <p>
-                  <strong>SHA256:</strong> {compileResult?.sha256 ?? '-'}
-                </p>
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2.5,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  backgroundColor: 'rgba(12, 18, 28, 0.45)',
+                }}
+              >
+                <Stack spacing={1}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+                    Runtime state
+                  </Typography>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    <Chip label={`Style ID: ${createdStyle?.style_id ?? '-'}`} size="small" />
+                    <Chip label={`Version: ${createdVersion?.version ?? '-'}`} size="small" />
+                    <Chip label={`Artifact ID: ${compileResult?.artifact_id ?? '-'}`} size="small" />
+                    <Chip label={`Runner Job: ${runnerJobId ?? '-'}`} size="small" />
+                    <Chip label={`Runner Status: ${runnerJobStatus ?? '-'}`} size="small" />
+                    <Chip label={`SHA256: ${compileResult?.sha256 ?? '-'}`} size="small" />
+                  </Stack>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Host imported path: {hostImportedPath ?? '-'}
+                  </Typography>
+                </Stack>
               </Box>
             </Stack>
           </AccordionDetails>

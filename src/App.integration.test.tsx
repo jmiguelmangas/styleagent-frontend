@@ -483,7 +483,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Artifact ID: artifact_dl_1')).toBeInTheDocument()
+      expect(screen.getAllByText('Artifact ID: artifact_dl_1').length).toBeGreaterThan(0)
     })
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/artifacts\/artifact_dl_1$/),
@@ -609,7 +609,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Artifact ID: artifact_existing')).toBeInTheDocument()
+      expect(screen.getAllByText('Artifact ID: artifact_existing').length).toBeGreaterThan(0)
     })
 
     expect(fetchMock).not.toHaveBeenCalledWith(
@@ -729,7 +729,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'History and previous exports' }))
     expect(await screen.findByText('AI generation history')).toBeInTheDocument()
     expect(await screen.findByText('AI Cinematic Warm')).toBeInTheDocument()
-    expect(await screen.findByText('Prompt: cinematic warm portrait')).toBeInTheDocument()
+    expect(await screen.findByText('cinematic warm portrait')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Use this preset' }))
     expect(await screen.findByDisplayValue('AI Cinematic Warm')).toBeInTheDocument()
   })
