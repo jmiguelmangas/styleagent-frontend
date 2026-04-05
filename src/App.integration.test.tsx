@@ -485,7 +485,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await waitFor(() => {
       expect(screen.getByText('Artifact ID: artifact_dl_1')).toBeInTheDocument()
     })
-    expect(await screen.findByText(/The latest saved preset was compiled and the \.costyle download has started\./)).toBeInTheDocument()
+    expect(await screen.findByText('Export started')).toBeInTheDocument()
     expect(await screen.findByText(/compiled and the \.costyle download has started/i)).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/artifacts\/artifact_dl_1$/),
@@ -613,7 +613,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await waitFor(() => {
       expect(screen.getByText('Artifact ID: artifact_existing')).toBeInTheDocument()
     })
-    expect(await screen.findByText(/The latest saved preset was compiled and the \.costyle download has started\./)).toBeInTheDocument()
+    expect(await screen.findByText('Export started')).toBeInTheDocument()
 
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringMatching(/\/styles$/),
