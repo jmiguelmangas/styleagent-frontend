@@ -2,7 +2,10 @@ import { useState, type ReactNode } from 'react'
 
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import LightModeIcon from '@mui/icons-material/LightMode'
+import PaletteIcon from '@mui/icons-material/Palette'
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest'
+import TheaterComedyIcon from '@mui/icons-material/TheaterComedy'
 import {
   Accordion,
   AccordionDetails,
@@ -10,6 +13,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   FormControl,
   FormControlLabel,
   FormGroup,
@@ -50,6 +54,15 @@ const COLOR_NUMERIC_CONTROLS = [
 ] as const
 
 type ControlDefinition = (typeof CORE_NUMERIC_CONTROLS)[number] | (typeof COLOR_NUMERIC_CONTROLS)[number]
+
+type SectionCardProps = {
+  title: string
+  subtitle: string
+  icon: ReactNode
+  accent: string
+  content: ReactNode
+  sx?: Record<string, unknown>
+}
 
 const sliderSx = {
   py: 0.5,
@@ -177,14 +190,29 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
     const display = control.precision > 0 ? value.toFixed(control.precision) : Math.round(value)
 
     return (
-      <Box key={control.key}>
+      <Box
+        key={control.key}
+        sx={{
+          p: 1.15,
+          borderRadius: 2,
+          border: '1px solid rgba(255,255,255,0.06)',
+          backgroundColor: 'rgba(255,255,255,0.02)',
+        }}
+      >
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.4 }}>
-          <Typography variant="body2" sx={{ color: 'rgba(226, 232, 240, 0.92)' }}>
+          <Typography variant="body2" sx={{ color: 'rgba(226, 232, 240, 0.92)', fontWeight: 600 }}>
             {control.label}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'rgba(148, 163, 184, 0.95)' }}>
-            {display}
-          </Typography>
+          <Chip
+            size="small"
+            label={display}
+            sx={{
+              height: 22,
+              backgroundColor: 'rgba(15, 23, 42, 0.72)',
+              color: 'rgba(226, 232, 240, 0.92)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+          />
         </Stack>
         <Slider
           value={value}
@@ -199,22 +227,40 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
     )
   }
 
-  function sectionCard(title: string, subtitle: string, content: ReactNode) {
+  function sectionCard({ title, subtitle, icon, accent, content, sx }: SectionCardProps) {
     return (
       <Box
         sx={{
           p: 1.75,
-          borderRadius: 2.5,
+          borderRadius: 3,
           border: '1px solid rgba(255,255,255,0.08)',
-          backgroundColor: 'rgba(12, 18, 28, 0.56)',
+          background: `linear-gradient(180deg, ${accent} 0%, rgba(12, 18, 28, 0.56) 28%, rgba(12, 18, 28, 0.56) 100%)`,
+          ...sx,
         }}
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.35 }}>
-          {title}
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1.4 }}>
-          {subtitle}
-        </Typography>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.85 }}>
+          <Box
+            sx={{
+              width: 34,
+              height: 34,
+              borderRadius: 1.5,
+              display: 'grid',
+              placeItems: 'center',
+              backgroundColor: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            {icon}
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.15 }}>
+              {title}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+              {subtitle}
+            </Typography>
+          </Box>
+        </Stack>
         {content}
       </Box>
     )
@@ -226,75 +272,117 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
         mt: 1.5,
         p: 2,
         border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 2,
+        borderRadius: 2.5,
         backgroundColor: 'rgba(255,255,255,0.02)',
       }}
     >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-        <AutoFixHighIcon fontSize="small" />
-        <Typography variant="subtitle1" fontWeight={700}>
-          Style Properties
-        </Typography>
-      </Stack>
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <AutoFixHighIcon fontSize="small" />
+            <Typography variant="subtitle1" fontWeight={700}>
+              Style Properties
+            </Typography>
+          </Stack>
 
-      <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' } }}>
-        {sectionCard(
-          'Light',
-          'Balance exposure and shape contrast.',
-          <Box sx={{ display: 'grid', gap: 1.35, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-            {CORE_NUMERIC_CONTROLS.map((control) => renderNumericControl(control))}
-          </Box>,
-        )}
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="small" label={`Tone curve: ${typeof spec.captureone.keys.ToneCurve === 'string' ? spec.captureone.keys.ToneCurve : 'Film Standard'}`} />
+            <Chip size="small" label={spec.intent.length > 0 ? `${spec.intent.length} creative tags` : 'No creative tags yet'} />
+          </Stack>
+        </Stack>
 
-        {sectionCard(
-          'Color',
-          'Adjust white balance and color bias.',
-          <Box sx={{ display: 'grid', gap: 1.35, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-            {COLOR_NUMERIC_CONTROLS.map((control) => renderNumericControl(control))}
-          </Box>,
-        )}
+        <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' } }}>
+          {sectionCard({
+            title: 'Light',
+            subtitle: 'Balance exposure, contrast and overall structure.',
+            icon: <LightModeIcon fontSize="small" />,
+            accent: 'rgba(148, 163, 184, 0.08)',
+            content: (
+              <Box sx={{ display: 'grid', gap: 1.15, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+                {CORE_NUMERIC_CONTROLS.map((control) => renderNumericControl(control))}
+              </Box>
+            ),
+          })}
 
-        {sectionCard(
-          'Mood',
-          'Define character, curve and overall feel.',
-          <Stack spacing={1.5}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="tone-curve-label">Tone Curve</InputLabel>
-              <Select
-                labelId="tone-curve-label"
-                label="Tone Curve"
-                value={typeof spec.captureone.keys.ToneCurve === 'string' ? spec.captureone.keys.ToneCurve : 'Film Standard'}
-                onChange={(event) => updateStringKey('ToneCurve', event.target.value)}
-              >
-                {TONE_CURVE_OPTIONS.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          {sectionCard({
+            title: 'Color',
+            subtitle: 'Set white balance, highlight rolloff and color bias.',
+            icon: <PaletteIcon fontSize="small" />,
+            accent: 'rgba(59, 130, 246, 0.08)',
+            content: (
+              <Box sx={{ display: 'grid', gap: 1.15, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+                {COLOR_NUMERIC_CONTROLS.map((control) => renderNumericControl(control))}
+              </Box>
+            ),
+          })}
 
-            <Box>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <SettingsSuggestIcon fontSize="small" />
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  Intent tags
-                </Typography>
+          {sectionCard({
+            title: 'Mood',
+            subtitle: 'Define curve, intent and the overall emotional direction.',
+            icon: <TheaterComedyIcon fontSize="small" />,
+            accent: 'rgba(245, 158, 11, 0.08)',
+            sx: { gridColumn: { xs: 'auto', xl: '1 / -1' } },
+            content: (
+              <Stack spacing={1.5}>
+                <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 280px) 1fr' } }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="tone-curve-label">Tone Curve</InputLabel>
+                    <Select
+                      labelId="tone-curve-label"
+                      label="Tone Curve"
+                      value={typeof spec.captureone.keys.ToneCurve === 'string' ? spec.captureone.keys.ToneCurve : 'Film Standard'}
+                      onChange={(event) => updateStringKey('ToneCurve', event.target.value)}
+                    >
+                      {TONE_CURVE_OPTIONS.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <Box
+                    sx={{
+                      p: 1.1,
+                      borderRadius: 2,
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      backgroundColor: 'rgba(255,255,255,0.02)',
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <SettingsSuggestIcon fontSize="small" />
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        Intent tags
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                      {INTENT_OPTIONS.map((intent) => {
+                        const selected = spec.intent.includes(intent)
+                        return (
+                          <Chip
+                            key={intent}
+                            label={intent}
+                            clickable
+                            color={selected ? 'primary' : 'default'}
+                            variant={selected ? 'filled' : 'outlined'}
+                            onClick={() => toggleIntent(intent)}
+                            sx={{
+                              borderRadius: 999,
+                              '&.MuiChip-filled': {
+                                background: 'linear-gradient(90deg, rgba(96,165,250,0.92) 0%, rgba(129,140,248,0.95) 100%)',
+                              },
+                            }}
+                          />
+                        )
+                      })}
+                    </Stack>
+                  </Box>
+                </Box>
               </Stack>
-              <FormGroup row sx={{ gap: 1 }}>
-                {INTENT_OPTIONS.map((intent) => (
-                  <FormControlLabel
-                    key={intent}
-                    sx={checkboxLabelSx}
-                    control={<Checkbox checked={spec.intent.includes(intent)} onChange={() => toggleIntent(intent)} />}
-                    label={intent}
-                  />
-                ))}
-              </FormGroup>
-            </Box>
-          </Stack>,
-        )}
-      </Box>
+            ),
+          })}
+        </Box>
+      </Stack>
 
       <Accordion
         disableGutters
@@ -373,69 +461,67 @@ export function StyleSpecControls({ spec, onChange, showAllProperties }: StyleSp
       </Accordion>
 
       {showAllProperties && (
-        <>
-          <Accordion
-            disableGutters
-            defaultExpanded={false}
-            sx={{
-              mt: 1.5,
-              borderRadius: 2.5,
-              backgroundColor: 'rgba(12, 18, 28, 0.5)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              '&:before': { display: 'none' },
-            }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Stack spacing={0.2}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  All Capture One Properties
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Inspect and edit raw keys when you need full control.
-                </Typography>
+        <Accordion
+          disableGutters
+          defaultExpanded={false}
+          sx={{
+            mt: 1.5,
+            borderRadius: 2.5,
+            backgroundColor: 'rgba(12, 18, 28, 0.5)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            '&:before': { display: 'none' },
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Stack spacing={0.2}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                All Capture One Properties
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Inspect and edit raw keys when you need full control.
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={1}>
+              {Object.entries(spec.captureone.keys).map(([key, value]) => (
+                <TextField
+                  key={key}
+                  fullWidth
+                  label={key}
+                  value={String(value)}
+                  onChange={(event) => updateGenericKeyValue(key, event.target.value)}
+                />
+              ))}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <TextField
+                  label="New property key"
+                  fullWidth
+                  value={newPropertyKey}
+                  onChange={(event) => setNewPropertyKey(event.target.value)}
+                />
+                <TextField
+                  label="New property value"
+                  fullWidth
+                  value={newPropertyValue}
+                  onChange={(event) => setNewPropertyValue(event.target.value)}
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  disabled={!newPropertyKey.trim()}
+                  onClick={() => {
+                    updateGenericKeyValue(newPropertyKey.trim(), newPropertyValue)
+                    setNewPropertyKey('')
+                    setNewPropertyValue('')
+                  }}
+                >
+                  Add
+                </Button>
               </Stack>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={1}>
-                {Object.entries(spec.captureone.keys).map(([key, value]) => (
-                  <TextField
-                    key={key}
-                    fullWidth
-                    label={key}
-                    value={String(value)}
-                    onChange={(event) => updateGenericKeyValue(key, event.target.value)}
-                  />
-                ))}
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <TextField
-                    label="New property key"
-                    fullWidth
-                    value={newPropertyKey}
-                    onChange={(event) => setNewPropertyKey(event.target.value)}
-                  />
-                  <TextField
-                    label="New property value"
-                    fullWidth
-                    value={newPropertyValue}
-                    onChange={(event) => setNewPropertyValue(event.target.value)}
-                  />
-                  <Button
-                    variant="outlined"
-                    startIcon={<AddIcon />}
-                    disabled={!newPropertyKey.trim()}
-                    onClick={() => {
-                      updateGenericKeyValue(newPropertyKey.trim(), newPropertyValue)
-                      setNewPropertyKey('')
-                      setNewPropertyValue('')
-                    }}
-                  >
-                    Add
-                  </Button>
-                </Stack>
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
-        </>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
       )}
     </Box>
   )
