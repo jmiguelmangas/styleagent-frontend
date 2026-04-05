@@ -147,216 +147,258 @@ export function AIChatPanel({
 
   return (
     <section className="history-card">
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-        <Typography variant="h6" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-          <ChatIcon fontSize="small" />
-          AI conversation
-        </Typography>
-        <Stack direction="row" spacing={1}>
-          <Button
-            type="button"
+      <Stack spacing={1.5}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', md: 'center' }}
+          spacing={1}
+        >
+          <Stack spacing={0.5}>
+            <Typography variant="h6" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+              <ChatIcon fontSize="small" />
+              AI conversation
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 760 }}>
+              Ask for directional changes in plain language. Keep this panel for creative back-and-forth, not for low-level pipeline work.
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Button
+              type="button"
+              size="small"
+              variant="outlined"
+              startIcon={<SaveIcon />}
+              onClick={onSavePreset}
+              disabled={loading || savingPreset}
+            >
+              {savingPreset ? 'Saving preset...' : 'Save preset'}
+            </Button>
+            <Button type="button" size="small" variant="outlined" onClick={onResetSession} disabled={loading}>
+              New session
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Chip label={`Session ${sessionId ?? 'not started'}`} size="small" />
+          <Chip label={`${turns.length} turns`} size="small" />
+          <Chip
+            label={`Direction: ${activeFamilyId ? formatFamilyLabel(activeFamilyId) : 'Auto detect'}`}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+          <Chip label={`Intensity: ${intensity}`} size="small" variant="outlined" />
+        </Stack>
+
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1.25,
+            backgroundColor: 'rgba(17, 24, 39, 0.72)',
+            borderColor: 'rgba(122, 162, 255, 0.18)',
+          }}
+        >
+          <Stack spacing={1.25}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+              Conversation setup
+            </Typography>
+
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.25}
+              alignItems={{ xs: 'stretch', md: 'center' }}
+            >
+              <TextField
+                select
+                label="Creative family"
+                value={familyId ?? ''}
+                onChange={(event) => onFamilyChange(event.target.value || null)}
+                size="small"
+                SelectProps={{
+                  MenuProps: {
+                    disablePortal: true,
+                  },
+                }}
+                sx={{ minWidth: { xs: '100%', md: 260 } }}
+              >
+                <MenuItem value="">Auto-detect from conversation</MenuItem>
+                {availableFamilies.map((family) => (
+                  <MenuItem key={family} value={family}>
+                    {family}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <Stack spacing={0.5}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+                  Intensity
+                </Typography>
+                <ToggleButtonGroup
+                  size="small"
+                  exclusive
+                  value={intensity}
+                  onChange={(_event, value: AIPresetIntensity | null) => {
+                    if (value) {
+                      onIntensityChange(value)
+                    }
+                  }}
+                  aria-label="chat-intensity"
+                >
+                  <ToggleButton value="subtle" aria-label="chat-intensity-subtle">
+                    Subtle
+                  </ToggleButton>
+                  <ToggleButton value="balanced" aria-label="chat-intensity-balanced">
+                    Balanced
+                  </ToggleButton>
+                  <ToggleButton value="bold" aria-label="chat-intensity-bold">
+                    Bold
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Stack>
+            </Stack>
+
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Switch
+                checked={autoApply}
+                onChange={(event) => onAutoApplyChange(event.target.checked)}
+                inputProps={{ 'aria-label': 'chat-auto-apply' }}
+              />
+              <Typography variant="body2">Auto-apply proposals</Typography>
+            </Stack>
+          </Stack>
+        </Paper>
+
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1.25,
+            backgroundColor: 'rgba(17, 24, 39, 0.72)',
+            borderColor: 'rgba(122, 162, 255, 0.18)',
+          }}
+        >
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
+            Intensity moves
+          </Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: activeFamilyId ? 1 : 0 }}>
+            {quickActions.map((action) => (
+              <Chip
+                key={action.key}
+                label={action.label}
+                size="small"
+                clickable
+                variant="outlined"
+                onClick={action.onClick}
+              />
+            ))}
+            {activeFamilyId ? (
+              <Chip
+                label={`Stay in ${formatFamilyLabel(activeFamilyId)}`}
+                size="small"
+                clickable
+                color="primary"
+                variant="outlined"
+                onClick={() => onQuickSend(`Keep the ${formatFamilyLabel(activeFamilyId)} direction.`, intensity, activeFamilyId)}
+              />
+            ) : null}
+          </Stack>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.75, mt: 1.25, color: 'text.secondary', fontWeight: 700 }}>
+            Creative moves
+          </Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+            {creativeQuickActions.map((action) => (
+              <Chip
+                key={action.key}
+                label={action.label}
+                size="small"
+                clickable
+                variant="outlined"
+                onClick={action.onClick}
+              />
+            ))}
+          </Stack>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            Current direction: {activeFamilyId ? formatFamilyLabel(activeFamilyId) : 'Auto-detect family'} · {intensity}
+          </Typography>
+        </Paper>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <TextField
+            label="Message to AI"
+            value={message}
+            onChange={(event) => onMessageChange(event.target.value)}
+            placeholder="Example: make it brighter but keep skin tones natural"
+            fullWidth
             size="small"
             variant="outlined"
-            startIcon={<SaveIcon />}
-            onClick={onSavePreset}
-            disabled={loading || savingPreset}
-          >
-            {savingPreset ? 'Saving preset...' : 'Save preset'}
-          </Button>
-          <Button type="button" size="small" variant="outlined" onClick={onResetSession} disabled={loading}>
-            New session
-          </Button>
-        </Stack>
-      </Stack>
-
-      <p style={{ marginTop: 0 }}>
-        Session: <strong>{sessionId ?? 'not started'}</strong> · Turns: <strong>{turns.length}</strong>
-      </p>
-
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={1.25}
-        alignItems={{ xs: 'stretch', md: 'center' }}
-        sx={{ mb: 1.5 }}
-      >
-        <TextField
-          select
-          label="Creative family"
-          value={familyId ?? ''}
-          onChange={(event) => onFamilyChange(event.target.value || null)}
-          size="small"
-          SelectProps={{
-            MenuProps: {
-              disablePortal: true,
-            },
-          }}
-          sx={{ minWidth: { xs: '100%', md: 260 } }}
-        >
-          <MenuItem value="">Auto-detect from conversation</MenuItem>
-          {availableFamilies.map((family) => (
-            <MenuItem key={family} value={family}>
-              {family}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <Stack spacing={0.5}>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
-            Intensity
-          </Typography>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={intensity}
-            onChange={(_event, value: AIPresetIntensity | null) => {
-              if (value) {
-                onIntensityChange(value)
-              }
+            InputLabelProps={{ shrink: true }}
+            sx={{
+              '& .MuiInputLabel-root': {
+                color: 'rgba(226, 232, 240, 0.78)',
+              },
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: 'rgba(12, 18, 28, 0.6)',
+              },
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(255,255,255,0.12)',
+              },
             }}
-            aria-label="chat-intensity"
+          />
+          <Button
+            type="button"
+            variant="contained"
+            startIcon={<SendIcon />}
+            onClick={onSend}
+            disabled={loading || !message.trim()}
+            sx={{ minWidth: { sm: 140 } }}
           >
-            <ToggleButton value="subtle" aria-label="chat-intensity-subtle">
-              Subtle
-            </ToggleButton>
-            <ToggleButton value="balanced" aria-label="chat-intensity-balanced">
-              Balanced
-            </ToggleButton>
-            <ToggleButton value="bold" aria-label="chat-intensity-bold">
-              Bold
-            </ToggleButton>
-          </ToggleButtonGroup>
+            Send
+          </Button>
         </Stack>
-      </Stack>
-
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 1.25,
-          mb: 1.5,
-          backgroundColor: 'rgba(17, 24, 39, 0.72)',
-          borderColor: 'rgba(122, 162, 255, 0.18)',
-        }}
-      >
-        <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
-          Intensity moves
-        </Typography>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: activeFamilyId ? 1 : 0 }}>
-          {quickActions.map((action) => (
-            <Chip
-              key={action.key}
-              label={action.label}
-              size="small"
-              clickable
-              variant="outlined"
-              onClick={action.onClick}
-            />
-          ))}
-          {activeFamilyId ? (
-            <Chip
-              label={`Stay in ${formatFamilyLabel(activeFamilyId)}`}
-              size="small"
-              clickable
-              color="primary"
-              variant="outlined"
-              onClick={() => onQuickSend(`Keep the ${formatFamilyLabel(activeFamilyId)} direction.`, intensity, activeFamilyId)}
-            />
-          ) : null}
-        </Stack>
-        <Typography variant="caption" sx={{ display: 'block', mb: 0.75, mt: 1.25, color: 'text.secondary', fontWeight: 700 }}>
-          Creative moves
-        </Typography>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
-          {creativeQuickActions.map((action) => (
-            <Chip
-              key={action.key}
-              label={action.label}
-              size="small"
-              clickable
-              variant="outlined"
-              onClick={action.onClick}
-            />
-          ))}
-        </Stack>
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          Current direction: {activeFamilyId ? formatFamilyLabel(activeFamilyId) : 'Auto-detect family'} · {intensity}
-        </Typography>
-      </Paper>
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1 }}>
-        <TextField
-          label="Message to AI"
-          value={message}
-          onChange={(event) => onMessageChange(event.target.value)}
-          placeholder="Example: make it brighter but keep skin tones natural"
-          fullWidth
-          size="small"
-          variant="outlined"
-          InputLabelProps={{ shrink: true }}
-          sx={{
-            '& .MuiInputLabel-root': {
-              color: 'rgba(226, 232, 240, 0.78)',
-            },
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: 'rgba(12, 18, 28, 0.6)',
-            },
-            '& .MuiOutlinedInput-notchedOutline': {
-              borderColor: 'rgba(255,255,255,0.12)',
-            },
-          }}
-        />
-        <Button
-          type="button"
-          variant="contained"
-          startIcon={<SendIcon />}
-          onClick={onSend}
-          disabled={loading || !message.trim()}
-        >
-          Send
-        </Button>
-      </Stack>
-
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-        <Switch
-          checked={autoApply}
-          onChange={(event) => onAutoApplyChange(event.target.checked)}
-          inputProps={{ 'aria-label': 'chat-auto-apply' }}
-        />
-        <span>Auto-apply proposals</span>
-      </Stack>
 
       {turns.length === 0 && <p>No turns yet. Start by sending a message.</p>}
       {turns.length > 0 && (
-        <ul className="history-list" aria-label="chat-turn-list">
+        <Stack component="ul" spacing={1.25} aria-label="chat-turn-list" sx={{ listStyle: 'none', p: 0, m: 0 }}>
           {turns.map((turn) => (
-            <li key={turn.turn_id}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 1.25,
-                  mb: 1,
-                  backgroundColor: 'rgba(35, 49, 78, 0.55)',
-                  borderColor: 'rgba(122, 162, 255, 0.22)',
-                }}
-              >
-                <Typography variant="body2">
-                  <strong>You:</strong> {turn.user_message}
-                </Typography>
-              </Paper>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 1.25,
-                  mb: 1,
-                  backgroundColor: 'rgba(255,255,255,0.03)',
-                  borderColor: 'rgba(255,255,255,0.08)',
-                }}
-              >
-                <Typography variant="body2">
-                  <strong>Assistant:</strong> {turn.assistant_message}
-                </Typography>
-              </Paper>
+            <Paper
+              key={turn.turn_id}
+              component="li"
+              variant="outlined"
+              sx={{
+                p: 1.25,
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                borderColor: 'rgba(255,255,255,0.08)',
+              }}
+            >
+              <Stack spacing={1}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.25,
+                    backgroundColor: 'rgba(35, 49, 78, 0.55)',
+                    borderColor: 'rgba(122, 162, 255, 0.22)',
+                  }}
+                >
+                  <Typography variant="body2">
+                    <strong>You:</strong> {turn.user_message}
+                  </Typography>
+                </Paper>
 
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.25,
+                    backgroundColor: 'rgba(255,255,255,0.02)',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Typography variant="body2">
+                    <strong>Assistant:</strong> {turn.assistant_message}
+                  </Typography>
+                </Paper>
+
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 {turn.guidance.detected_goals.map((goal) => (
                   <Chip key={goal} label={goal} size="small" variant="outlined" />
                 ))}
@@ -383,78 +425,91 @@ export function AIChatPanel({
                   <Chip label={`Mode: ${turn.planner_trace.mode}`} size="small" variant="outlined" />
                 ) : null}
                 {turn.applied && <Chip label="Applied" size="small" color="success" icon={<DoneIcon />} />}
-              </Stack>
-
-              {turn.planner_trace?.refinement_ids?.length ? (
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
-                  {turn.planner_trace.refinement_ids.map((refinementId) => (
-                    <Chip key={`${turn.turn_id}:${refinementId}`} label={refinementId} size="small" />
-                  ))}
                 </Stack>
-              ) : null}
+                {turn.planner_trace?.refinement_ids?.length ? (
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    {turn.planner_trace.refinement_ids.map((refinementId) => (
+                      <Chip key={`${turn.turn_id}:${refinementId}`} label={refinementId} size="small" />
+                    ))}
+                  </Stack>
+                ) : null}
 
-              <Alert severity="info" sx={{ mb: 1 }}>
-                {turn.guidance.reasoning_summary}
-              </Alert>
-
-              {turn.proposed_changes.length > 0 && (
-                <ul style={{ margin: '0 0 8px 18px' }}>
-                  {turn.proposed_changes.map((change) => (
-                    <li key={`${turn.turn_id}:${change.key}`}>
-                      {change.key}: {change.from_value} {'->'} {change.to_value}
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {turn.warnings.length > 0 && (
-                <Alert severity="warning" sx={{ mb: 1 }}>
-                  {turn.warnings[0]}
+                <Alert severity="info">
+                  {turn.guidance.reasoning_summary}
                 </Alert>
-              )}
 
-              {turn.guidance.suggested_next_messages.length > 0 && (
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
-                  {turn.guidance.suggested_next_messages.map((suggestion) => (
-                    <Chip
-                      key={`${turn.turn_id}:${suggestion}`}
-                      label={suggestion}
+                {turn.proposed_changes.length > 0 && (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.25,
+                      backgroundColor: 'rgba(12, 18, 28, 0.45)',
+                      borderColor: 'rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 700 }}>
+                      Proposed changes
+                    </Typography>
+                    <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5 }}>
+                      {turn.proposed_changes.map((change) => (
+                        <Typography component="li" variant="body2" key={`${turn.turn_id}:${change.key}`}>
+                          {change.key}: {change.from_value} {'->'} {change.to_value}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  </Paper>
+                )}
+
+                {turn.warnings.length > 0 && (
+                  <Alert severity="warning">
+                    {turn.warnings[0]}
+                  </Alert>
+                )}
+
+                {turn.guidance.suggested_next_messages.length > 0 && (
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    {turn.guidance.suggested_next_messages.map((suggestion) => (
+                      <Chip
+                        key={`${turn.turn_id}:${suggestion}`}
+                        label={suggestion}
+                        size="small"
+                        onClick={() => onSuggestionSelect(suggestion)}
+                        clickable
+                        variant="outlined"
+                      />
+                    ))}
+                  </Stack>
+                )}
+
+                <Stack direction="row" spacing={1}>
+                  {!turn.applied && (
+                    <Button
+                      type="button"
                       size="small"
-                      onClick={() => onSuggestionSelect(suggestion)}
-                      clickable
-                      variant="outlined"
-                    />
-                  ))}
-                </Stack>
-              )}
-
-              <Stack direction="row" spacing={1}>
-                {!turn.applied && (
+                      variant="contained"
+                      onClick={() => onApplyTurn(turn.turn_id)}
+                      disabled={loading || applyingTurnId === turn.turn_id}
+                    >
+                      Apply turn
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="small"
-                    variant="contained"
-                    onClick={() => onApplyTurn(turn.turn_id)}
-                    disabled={loading || applyingTurnId === turn.turn_id}
+                    variant="outlined"
+                    startIcon={<UndoIcon />}
+                    onClick={() => onRevertTurn(turn.turn_id)}
+                    disabled={loading}
                   >
-                    Apply turn
+                    Revert (local)
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  size="small"
-                  variant="outlined"
-                  startIcon={<UndoIcon />}
-                  onClick={() => onRevertTurn(turn.turn_id)}
-                  disabled={loading}
-                >
-                  Revert (local)
-                </Button>
+                </Stack>
               </Stack>
-            </li>
+            </Paper>
           ))}
-        </ul>
+        </Stack>
       )}
+      </Stack>
     </section>
   )
 }
