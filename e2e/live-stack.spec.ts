@@ -43,7 +43,7 @@ test.describe('live stack smoke', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await expect(page.getByRole('heading', { name: 'Save and export' })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Save preset' }).click()
+    await page.getByRole('button', { name: 'Save preset' }).first().click()
     await expect(page.locator('.MuiChip-label').filter({ hasText: /^Style ID:/ }).first()).toBeVisible({
       timeout: 20_000,
     })
@@ -52,7 +52,7 @@ test.describe('live stack smoke', () => {
     })
 
     const downloadPromise = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Export .costyle' }).click()
+    await page.getByRole('button', { name: 'Export .costyle' }).first().click()
 
     await expect(page.locator('.MuiChip-label').filter({ hasText: /^Artifact ID:/ }).first()).toBeVisible({
       timeout: 30_000,
