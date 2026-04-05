@@ -479,6 +479,7 @@ describe('App integration', { timeout: 15_000 }, () => {
         expect.objectContaining({ method: 'POST' }),
       )
     })
+    expect(await screen.findByText(/Download Ready v1 is ready for export or Capture One sync\./)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
 
     await waitFor(() => {
@@ -603,6 +604,7 @@ describe('App integration', { timeout: 15_000 }, () => {
         expect.anything(),
       )
     })
+    expect(await screen.findByText(/Nolan Warm v1 is ready for export or Capture One sync\./)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
 
