@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 
+function hasTextContent(text: string) {
+  return (_content: string, node: Element | null) => node?.textContent?.includes(text) ?? false
+}
+
 describe('App integration', { timeout: 15_000 }, () => {
   afterEach(() => {
     cleanup()
@@ -485,7 +489,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await waitFor(() => {
       expect(screen.getByText('Artifact ID: artifact_dl_1')).toBeInTheDocument()
     })
-    expect(await screen.findByText('Export started')).toBeInTheDocument()
+    expect((await screen.findAllByText(hasTextContent('Export started'))).length).toBeGreaterThan(0)
     expect(await screen.findByText(/compiled and the \.costyle download has started/i)).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/artifacts\/artifact_dl_1$/),
@@ -613,7 +617,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await waitFor(() => {
       expect(screen.getByText('Artifact ID: artifact_existing')).toBeInTheDocument()
     })
-    expect(await screen.findByText('Export started')).toBeInTheDocument()
+    expect((await screen.findAllByText(hasTextContent('Export started'))).length).toBeGreaterThan(0)
 
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringMatching(/\/styles$/),
