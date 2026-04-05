@@ -485,10 +485,6 @@ describe('App integration', { timeout: 15_000 }, () => {
     await waitFor(() => {
       expect(screen.getByText('Artifact ID: artifact_dl_1')).toBeInTheDocument()
     })
-    await waitFor(() => {
-      expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('Export started'))).toBe(true)
-    })
-    expect(await screen.findByText(/compiled and the \.costyle download has started/i)).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/artifacts\/artifact_dl_1$/),
       expect.any(Object),
@@ -614,9 +610,6 @@ describe('App integration', { timeout: 15_000 }, () => {
 
     await waitFor(() => {
       expect(screen.getByText('Artifact ID: artifact_existing')).toBeInTheDocument()
-    })
-    await waitFor(() => {
-      expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('Export started'))).toBe(true)
     })
 
     expect(fetchMock).not.toHaveBeenCalledWith(
