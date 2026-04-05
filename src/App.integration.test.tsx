@@ -472,7 +472,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
-    await user.click(screen.getByRole('button', { name: 'Save preset' }))
+    await user.click(screen.getAllByRole('button', { name: 'Save preset' })[0])
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringMatching(/\/styles\/style_dl_1\/versions$/),
@@ -480,7 +480,7 @@ describe('App integration', { timeout: 15_000 }, () => {
       )
     })
     expect(await screen.findByText(/Download Ready v1 is ready for export or Capture One sync\./)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
+    await user.click(screen.getAllByRole('button', { name: 'Export .costyle' })[0])
 
     await waitFor(() => {
       expect(screen.getAllByText('Artifact ID: artifact_dl_1').length).toBeGreaterThan(0)
@@ -597,7 +597,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: /Describe the look/i }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
-    await user.click(screen.getByRole('button', { name: 'Save preset' }))
+    await user.click(screen.getAllByRole('button', { name: 'Save preset' })[0])
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringMatching(/\/styles\/style_existing\/versions\/v1$/),
@@ -606,7 +606,7 @@ describe('App integration', { timeout: 15_000 }, () => {
     })
     expect(await screen.findByText(/Nolan Warm v1 is ready for export or Capture One sync\./)).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Export .costyle' }))
+    await user.click(screen.getAllByRole('button', { name: 'Export .costyle' })[0])
 
     await waitFor(() => {
       expect(screen.getAllByText('Artifact ID: artifact_existing').length).toBeGreaterThan(0)

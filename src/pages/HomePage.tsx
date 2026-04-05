@@ -135,6 +135,20 @@ type FlowNotice = {
   title: string
   message: string
 }
+
+type ExportProgressStep = {
+  label: string
+  done: boolean
+  description: string
+}
+
+type PrimaryExportAction = {
+  label: string
+  description: string
+  action: 'save' | 'export' | 'send' | 'download' | 'refresh_job'
+  disabled: boolean
+}
+
 type EditorMode = 'guided' | 'advanced'
 type AIMode = 'generator' | 'chat'
 type JourneyStartMode = 'generator' | 'chat' | 'advanced'
@@ -286,6 +300,7 @@ export function HomePage() {
   const canSavePreset = activeAction === null && !isCurrentPresetSaved
   const canExportFile = activeAction === null && createdVersion !== null && executionMode === 'api'
   const canSendToCaptureOne = activeAction === null && createdVersion !== null && executionMode === 'host'
+  const canRefreshRunnerJob = activeAction === null && !!runnerJobId
   const exportReadiness = useMemo(() => {
     if (!createdVersion) {
       return {
@@ -327,6 +342,131 @@ export function HomePage() {
           : 'Export a .costyle file from the saved version.',
       }
   }, [createdVersion, isCurrentPresetSaved, executionMode, runnerJobId, runnerJobStatus, compileResult, hostImportedPath])
+
+  const exportProgress = useMemo<ExportProgressStep[]>(() => {
+    if (executionMode === 'host') {
+      return [
+        {
+          label: 'Save preset',
+          done: !!createdVersion && isCurrentPresetSaved,
+          description: createdVersion
+            ? isCurrentPresetSaved
+              ? 'Current edits are saved and ready to send.'
+              : 'Save the latest changes before syncing to Capture One.'
+            : 'Create or reuse a saved preset version first.',
+        },
+        {
+          label: 'Queue host sync',
+          done: !!runnerJobId,
+          description: runnerJobId ? 'The runner accepted the Capture One sync job.' : 'Send the saved version to the host runner.',
+        },
+        {
+          label: 'Confirm import',
+          done: !!hostImportedPath,
+          description: hostImportedPath
+            ? 'Capture One has already imported the latest .costyle.'
+            : runnerJobStatus && runnerJobStatus !== 'failed'
+              ? 'Wait for the runner to finish and confirm the imported path.'
+              : 'Track the job until the style is imported.',
+        },
+      ]
+    }
+
+    return [
+      {
+        label: 'Save preset',
+        done: !!createdVersion && isCurrentPresetSaved,
+        description: createdVersion
+          ? isCurrentPresetSaved
+            ? 'Current edits are saved and ready to export.'
+            : 'Save the latest changes before exporting a file.'
+          : 'Create or reuse a saved preset version first.',
+      },
+      {
+        label: 'Compile export',
+        done: !!compileResult,
+        description: compileResult
+          ? 'A fresh .costyle artifact is ready.'
+          : 'Compile the saved version into a downloadable .costyle artifact.',
+      },
+      {
+        label: 'Download file',
+        done: !!compileResult,
+        description: compileResult
+          ? 'Download the latest export or reuse it from the history list below.'
+          : 'Download becomes available right after compilation.',
+      },
+    ]
+  }, [executionMode, createdVersion, isCurrentPresetSaved, runnerJobId, runnerJobStatus, hostImportedPath, compileResult])
+
+  const primaryExportAction = useMemo<PrimaryExportAction>(() => {
+    if (!createdVersion) {
+      return {
+        label: 'Save preset',
+        description: 'Create the preset version first so export has a stable source.',
+        action: 'save',
+        disabled: !canSavePreset,
+      }
+    }
+
+    if (!isCurrentPresetSaved) {
+      return {
+        label: 'Save latest changes',
+        description: 'Your current edits are newer than the saved preset. Save again before exporting.',
+        action: 'save',
+        disabled: !canSavePreset,
+      }
+    }
+
+    if (executionMode === 'host') {
+      if (runnerJobId && runnerJobStatus && runnerJobStatus !== 'succeeded' && runnerJobStatus !== 'failed') {
+        return {
+          label: 'Check sync status',
+          description: 'The host job is already running. Check whether Capture One has finished importing it.',
+          action: 'refresh_job',
+          disabled: !canRefreshRunnerJob,
+        }
+      }
+
+      return {
+        label: hostImportedPath ? 'Send to Capture One again' : 'Send to Capture One',
+        description: hostImportedPath
+          ? 'Queue the latest saved preset again if you want to re-import it into Capture One.'
+          : 'Queue the latest saved preset on the host runner and watch the sync status.',
+        action: 'send',
+        disabled: !canSendToCaptureOne,
+      }
+    }
+
+    if (compileResult) {
+      return {
+        label: 'Download latest export',
+        description: 'The .costyle artifact is already ready. Download it again whenever you need it.',
+        action: 'download',
+        disabled: activeAction !== null,
+      }
+    }
+
+    return {
+      label: 'Export .costyle',
+      description: 'Compile the latest saved preset into a downloadable .costyle file.',
+      action: 'export',
+      disabled: !canExportFile,
+    }
+  }, [
+    createdVersion,
+    isCurrentPresetSaved,
+    executionMode,
+    runnerJobId,
+    runnerJobStatus,
+    hostImportedPath,
+    compileResult,
+    canSavePreset,
+    canSendToCaptureOne,
+    canExportFile,
+    canRefreshRunnerJob,
+    activeAction,
+  ])
   const flowCardMinHeight = wizardStep === 0 ? 280 : 560
   const computedJourneyStepIndex = hasPreparedExport
     ? 3
@@ -1744,70 +1884,199 @@ export function HomePage() {
               <Box
                 sx={{
                   display: 'grid',
-                  gap: 1.25,
-                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+                  gap: 1.5,
+                  gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.2fr) minmax(0, 1fr)' },
+                  alignItems: 'stretch',
                 }}
               >
-                <Stack spacing={0.75}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    startIcon={<RocketLaunchIcon />}
-                    onClick={() => {
-                      void handleSaveCurrentPreset()
-                    }}
-                    disabled={!canSavePreset}
-                  >
-                    {isLoading('save_preset') ? 'Saving preset...' : isCurrentPresetSaved ? 'Preset saved' : 'Save preset'}
-                  </Button>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
-                    {isCurrentPresetSaved
-                      ? 'Current preset version already matches these edits.'
-                      : 'Save the current name, version and StyleSpec before export.'}
-                  </Typography>
-                </Stack>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    backgroundColor: 'rgba(12, 18, 28, 0.55)',
+                  }}
+                >
+                  <Stack spacing={1.5}>
+                    <Box>
+                      <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1.1 }}>
+                        Recommended next step
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mt: 0.25 }}>
+                        {primaryExportAction.label}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+                        {primaryExportAction.description}
+                      </Typography>
+                    </Box>
 
-                <Stack spacing={0.75}>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    startIcon={<DnsIcon />}
-                    onClick={() => {
-                      void handleCompileAndDownload()
-                    }}
-                    disabled={!canExportFile}
-                  >
-                    {isLoading('compile_download') ? 'Exporting...' : 'Export .costyle'}
-                  </Button>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
-                    {executionMode !== 'api'
-                      ? 'Switch to Export file mode to download a .costyle.'
-                      : !createdVersion
-                        ? 'Available after the preset has been saved.'
-                        : 'Compile the saved version and download the latest .costyle artifact.'}
-                  </Typography>
-                </Stack>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={
+                        primaryExportAction.action === 'download'
+                          ? <HistoryIcon />
+                          : primaryExportAction.action === 'refresh_job'
+                            ? <HistoryIcon />
+                            : primaryExportAction.action === 'send'
+                              ? <LaptopMacIcon />
+                              : primaryExportAction.action === 'export'
+                                ? <DnsIcon />
+                                : <RocketLaunchIcon />
+                      }
+                      onClick={() => {
+                        if (primaryExportAction.action === 'save') {
+                          void handleSaveCurrentPreset()
+                          return
+                        }
+                        if (primaryExportAction.action === 'export') {
+                          void handleCompileAndDownload()
+                          return
+                        }
+                        if (primaryExportAction.action === 'send') {
+                          void handleCompile()
+                          return
+                        }
+                        if (primaryExportAction.action === 'refresh_job') {
+                          void handleRefreshRunnerJob()
+                          return
+                        }
+                        void handleDownloadArtifact()
+                      }}
+                      disabled={primaryExportAction.disabled}
+                    >
+                      {primaryExportAction.action === 'save'
+                        ? isLoading('save_preset')
+                          ? 'Saving preset...'
+                          : primaryExportAction.label
+                        : primaryExportAction.action === 'export'
+                          ? isLoading('compile_download')
+                            ? 'Exporting...'
+                            : primaryExportAction.label
+                          : primaryExportAction.action === 'send'
+                            ? isLoading('compile')
+                              ? 'Sending...'
+                              : primaryExportAction.label
+                            : primaryExportAction.action === 'refresh_job'
+                              ? isLoading('job')
+                                ? 'Checking job...'
+                                : isAutoPollingJob
+                                  ? 'Tracking job...'
+                                  : primaryExportAction.label
+                              : isLoading('download')
+                                ? 'Downloading...'
+                                : primaryExportAction.label}
+                    </Button>
 
-                <Stack spacing={0.75}>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    startIcon={<LaptopMacIcon />}
-                    onClick={() => {
-                      void handleCompile()
-                    }}
-                    disabled={!canSendToCaptureOne}
-                  >
-                    {isLoading('compile') ? 'Sending...' : 'Send to Capture One'}
-                  </Button>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
-                    {executionMode !== 'host'
-                      ? 'Switch to Send to Capture One mode to run the host sync.'
-                      : !createdVersion
-                        ? 'Available after the preset has been saved.'
-                        : 'Send the saved version through the runner and track its sync status below.'}
-                  </Typography>
-                </Stack>
+                    <Stack spacing={1}>
+                      {exportProgress.map((step) => (
+                        <Box
+                          key={step.label}
+                          sx={{
+                            p: 1.25,
+                            borderRadius: 2,
+                            border: '1px solid rgba(255,255,255,0.07)',
+                            backgroundColor: step.done ? 'rgba(29, 63, 48, 0.32)' : 'rgba(255,255,255,0.02)',
+                          }}
+                        >
+                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                              {step.label}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={step.done ? 'Done' : 'Pending'}
+                              color={step.done ? 'success' : 'default'}
+                              variant={step.done ? 'filled' : 'outlined'}
+                            />
+                          </Stack>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.75 }}>
+                            {step.description}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Stack>
+                </Box>
+
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    backgroundColor: 'rgba(12, 18, 28, 0.35)',
+                  }}
+                >
+                  <Stack spacing={1.25}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Manual actions
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Use these when you want to repeat a specific step instead of following the recommended path.
+                    </Typography>
+
+                    <Stack spacing={0.75}>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        startIcon={<RocketLaunchIcon />}
+                        onClick={() => {
+                          void handleSaveCurrentPreset()
+                        }}
+                        disabled={!canSavePreset}
+                      >
+                        {isLoading('save_preset') ? 'Saving preset...' : isCurrentPresetSaved ? 'Preset saved' : 'Save preset'}
+                      </Button>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
+                        {isCurrentPresetSaved
+                          ? 'Current preset version already matches these edits.'
+                          : 'Save the current name, version and StyleSpec before export.'}
+                      </Typography>
+                    </Stack>
+
+                    <Stack spacing={0.75}>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        startIcon={<DnsIcon />}
+                        onClick={() => {
+                          void handleCompileAndDownload()
+                        }}
+                        disabled={!canExportFile}
+                      >
+                        {isLoading('compile_download') ? 'Exporting...' : 'Export .costyle'}
+                      </Button>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
+                        {executionMode !== 'api'
+                          ? 'Switch to Export file mode to download a .costyle.'
+                          : !createdVersion
+                            ? 'Available after the preset has been saved.'
+                            : 'Compile the saved version and download the latest .costyle artifact.'}
+                      </Typography>
+                    </Stack>
+
+                    <Stack spacing={0.75}>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        startIcon={<LaptopMacIcon />}
+                        onClick={() => {
+                          void handleCompile()
+                        }}
+                        disabled={!canSendToCaptureOne}
+                      >
+                        {isLoading('compile') ? 'Sending...' : 'Send to Capture One'}
+                      </Button>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', minHeight: 20 }}>
+                        {executionMode !== 'host'
+                          ? 'Switch to Send to Capture One mode to run the host sync.'
+                          : !createdVersion
+                            ? 'Available after the preset has been saved.'
+                            : 'Send the saved version through the runner and track its sync status below.'}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
               </Box>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
